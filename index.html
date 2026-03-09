@@ -510,21 +510,20 @@ async function doLogin() {
       await afterLogin(); return;
     }
 
-    // Fetch clients with 8s timeout
-    let result = await Promise.race([
-      sb.from('training_clients').select('id,name,pin,goal,phone,photo'),
-      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))
-    ]).catch(e=>null);
+    // Use pre-loaded clients, or reload if empty
+    if (!clients.length) {
+      try {
+        const {data} = await sb.from('training_clients').select('id,name,pin,goal,phone,photo');
+        if (data) clients = data;
+      } catch(e) { console.error('Reload error:',e); }
+    }
 
-    if (!result || result.error || !result.data) {
-      showToast('Sin conexion. Intenta de nuevo.');
+    if (!clients.length) {
+      showToast('Sin conexión. Verifica tu internet.');
       btn.textContent='ENTRAR'; btn.disabled=false;
       return;
     }
 
-    clients = result.data;
-    console.log('PINs en BD:', clients.map(c=>({name:c.name, pin:c.pin, tipo:typeof c.pin})));
-    console.log('PIN ingresado:', pin, typeof pin);
     const client = clients.find(c=>String(c.pin)===String(pin));
     if (client) {
       isTrainer=false;
@@ -1406,6 +1405,14 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 window.addEventListener('click',e=>{if(e.target.classList.contains('modal-overlay'))e.target.classList.remove('open');});
 document.getElementById('pin-input').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('login-screen').style.display='flex';
+
+// Pre-load clients silently so PIN check works instantly
+(async () => {
+  try {
+    const {data} = await sb.from('training_clients').select('id,name,pin,goal,phone,photo');
+    if (data) clients = data;
+  } catch(e) { console.log('Pre-load failed, will retry on login'); }
+})();
 </script>
 </body>
 </html>
