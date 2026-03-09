@@ -1183,45 +1183,37 @@ async function doLogin() {
 
 async function hideLogin() {
   document.getElementById('login-screen').style.display = 'none';
+  showToast('⏳ Cargando datos...');
   await loadAllData();
   applyMode();
   populateSelects();
 
-  // If client, go directly to their workout
   if (!isTrainer) {
-    const clientId = parseInt(localStorage.getItem('cbc_t_client_id'));
-    const client = clients.find(c => String(c.id) === String(clientId));
+    const clientId = localStorage.getItem('cbc_t_client_id');
+    const client = clients.find(c => String(c.id) === clientId);
     if (client) {
       renderClients();
       openClientWorkout(client.id);
+      showToast('✓ Bienvenido ' + client.name.split(' ')[0]);
       return;
     }
   }
   renderClients();
-  showToast('✓ Datos cargados');
+  showToast('✓ Bienvenido');
 }
 
 function logout() {
-  localStorage.removeItem('cbc_t_pin');
-  localStorage.removeItem('cbc_t_client_id');
-  localStorage.removeItem('cbc_t_mode');
+  localStorage.clear();
   location.reload();
 }
 
-// Allow enter key always
+// Allow enter key
 document.getElementById('pin-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') doLogin();
 });
 
-// Check if already logged in
-const savedPin = localStorage.getItem('cbc_t_pin');
-if (savedPin) {
-  document.getElementById('pin-input').value = savedPin;
-  doLogin();
-}
-
-// ========= INIT =========
-// (handled by hideLogin after PIN)
+// Always show login screen on load - never auto-login
+document.getElementById('login-screen').style.display = 'flex';
 </script>
 </body>
 </html>
