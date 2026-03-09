@@ -3,105 +3,146 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>CBC Training</title>
+<title>Colorado's Boxing — Entrenamiento</title>
+<link rel="apple-touch-icon" href="logo-trainer.png">
+<link rel="icon" type="image/png" href="logo-trainer.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@300;400;700;900&display=swap" rel="stylesheet">
 <style>
-:root { --gold: #c9952a; --black: #0a0a0a; --dark: #1a1a1a; --white: #f0ede8; }
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Montserrat',sans-serif; background:var(--black); color:var(--white); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
-.header { background: #000; border-bottom: 1px solid var(--gold); padding: 15px; display: flex; align-items:center; justify-content: space-between; }
-.main { flex:1; overflow-y:auto; padding:20px; }
-.card { background: var(--dark); border-radius:12px; padding:15px; margin-bottom:15px; border: 1px solid #333; }
-.btn { width:100%; padding:15px; border-radius:10px; font-weight:700; border:none; cursor:pointer; text-transform:uppercase; margin-top:10px; }
-.btn-gold { background: var(--gold); color: #000; }
-input { width:100%; background:#222; border:1px solid #444; color:white; padding:15px; border-radius:8px; margin-bottom:15px; text-align:center; font-size:20px; }
-#login-screen { position:fixed; inset:0; background:#000; z-index:9000; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px; }
+:root {
+  --gold: #c9952a; --gold2: #e8b84b; --black: #0a0a0a; --dark: #111;
+  --dark2: #1a1a1a; --white: #f0ede8; --gray: #666; --success: #2ecc71;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { font-family:'Montserrat',sans-serif; background:var(--black); color:var(--white); height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+
+/* HEADER ESTILO COLORADO */
+.header { background: linear-gradient(135deg, #000, #1a1200); border-bottom: 1px solid var(--gold); padding: 15px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.header img { width:40px; height:40px; filter: drop-shadow(0 0 5px rgba(201,149,42,0.4)); }
+.header-title { font-family:'Bebas Neue',sans-serif; font-size:24px; color:var(--gold); letter-spacing:2px; }
+
+.main { flex:1; overflow-y:auto; padding:20px; padding-bottom:100px; }
+.card { background: var(--dark2); border:1px solid #333; border-radius:15px; padding:20px; margin-bottom:15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+.section-title { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--gold); margin-bottom:15px; letter-spacing:1px; }
+
+/* BOTONES */
+.btn { width:100%; padding:16px; border-radius:12px; font-weight:900; border:none; cursor:pointer; text-transform:uppercase; font-family:'Montserrat'; transition: 0.3s; }
+.btn-gold { background: linear-gradient(135deg, var(--gold), #8a6009); color: #000; box-shadow: 0 4px 15px rgba(201,149,42,0.2); }
+.btn-outline { background: transparent; border: 1px solid var(--gold); color: var(--gold); margin-top: 10px; }
+
+/* FORMULARIOS */
+input { width:100%; background:#222; border:1px solid #444; color:white; padding:15px; border-radius:10px; margin-bottom:15px; font-size:16px; }
+
+#login-screen { position:fixed; inset:0; background:var(--black); z-index:9000; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px; text-align:center; }
+#toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:var(--gold); color:black; padding:10px 25px; border-radius:30px; font-weight:bold; opacity:0; transition:0.3s; z-index:10000; }
 </style>
 </head>
 <body>
 
+<div id="toast"></div>
+
 <div id="login-screen">
-    <h1 style="font-family:'Bebas Neue'; color:var(--gold); font-size:40px; margin-bottom:30px;">CBC TRAINING</h1>
-    <input id="pin-input" type="password" inputmode="numeric" placeholder="PIN">
-    <button onclick="doLogin()" class="btn btn-gold">ENTRAR</button>
-    <p id="error-msg" style="color:red; margin-top:15px; display:none;"></p>
+    <img src="logo-trainer.png" style="width:120px; margin-bottom:20px;">
+    <h1 style="font-family:'Bebas Neue'; color:var(--gold); font-size:35px; letter-spacing:3px;">COLORADO'S BOXING</h1>
+    <p style="color:var(--gray); font-size:12px; margin-bottom:30px; letter-spacing:1px;">ENTRENAMIENTO PARA CAMPEONES</p>
+    <input id="pin-input" type="password" inputmode="numeric" placeholder="INGRESA TU PIN" style="text-align:center; letter-spacing:10px; font-size:25px;">
+    <button onclick="doLogin()" class="btn btn-gold">ENTRAR AL CLUB</button>
 </div>
 
 <div class="header">
-    <div style="font-family:'Bebas Neue'; color:var(--gold); font-size:24px;">COACH PANEL</div>
-    <button onclick="location.reload()" style="background:none; border:none; color:white;">Cerrar 🚪</button>
+    <img src="logo-trainer.png">
+    <div class="header-title" id="top-title">CBC TRAINING</div>
+    <div onclick="logout()" style="cursor:pointer; font-size:22px;">🚪</div>
 </div>
 
 <div class="main" id="app-content">
     </div>
 
 <script>
-// TUS DATOS DE SUPABASE (VALIDADOS)
 const S_URL = 'https://btdtpruxntodjuzomdcq.supabase.co';
 const S_KEY = 'sb_publishable_NA4niv3lN1R5OUkwJH8ihA_d547f1h4';
 const sb = supabase.createClient(S_URL, S_KEY);
+const COACH_PIN = "1234";
+
+let currentUser = null;
 
 async function doLogin() {
     const pin = document.getElementById('pin-input').value;
-    const err = document.getElementById('error-msg');
     
-    // TRUCO: Si el PIN es 1234, entra directo sin consultar la nube (para evitar bloqueos)
-    if(pin === "1234") {
+    // ACCESO DIRECTO PARA TI (COACH)
+    if(pin === COACH_PIN) {
+        localStorage.setItem('cbc_session', 'coach');
         document.getElementById('login-screen').style.display = 'none';
-        showCoach();
+        showCoachPanel();
         return;
     }
 
-    // Si es otro PIN, busca al alumno
-    try {
-        const { data, error } = await sb.from('training_clients').select('*').eq('pin', pin).single();
-        if(data) {
-            document.getElementById('login-screen').style.display = 'none';
-            showClient(data);
-        } else {
-            err.innerText = "PIN incorrecto";
-            err.style.display = 'block';
-        }
-    } catch(e) {
-        err.innerText = "Error de conexión";
-        err.style.display = 'block';
+    // BUSCAR ALUMNO
+    const { data, error } = await sb.from('training_clients').select('*').eq('pin', pin).single();
+    if(data) {
+        currentUser = data;
+        localStorage.setItem('cbc_session', pin);
+        document.getElementById('login-screen').style.display = 'none';
+        showClientView();
+    } else {
+        alert("PIN Incorrecto");
     }
 }
 
-async function showCoach() {
+// PANEL DEL COACH (PARA TI)
+async function showCoachPanel() {
+    document.getElementById('top-title').innerText = "COACH PANEL";
     const content = document.getElementById('app-content');
-    content.innerHTML = "Cargando alumnos...";
+    content.innerHTML = `<h2 class="section-title">Gestión de Alumnos</h2>
+                         <button class="btn btn-gold" onclick="addClient()">+ REGISTRAR ALUMNO</button>
+                         <div id="clients-list" style="margin-top:20px;">Cargando...</div>`;
     
     const { data: clients } = await sb.from('training_clients').select('*');
+    const list = document.getElementById('clients-list');
+    list.innerHTML = "";
     
-    let html = `<button class="btn btn-gold" onclick="addClient()">+ NUEVO ALUMNO</button><br><br>`;
-    if(clients && clients.length > 0) {
+    if(clients) {
         clients.forEach(c => {
-            html += `<div class="card" onclick="alert('Editando a: '+ '${c.name}')">
-                        <strong>${c.name.toUpperCase()}</strong><br>
-                        <small style="color:var(--gold)">PIN: ${c.pin}</small>
-                     </div>`;
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <strong style="font-size:18px;">${c.name.toUpperCase()}</strong><br>
+                                    <small style="color:var(--gold)">PIN: ${c.pin}</small>
+                                </div>
+                                <button onclick="editWorkout(${c.id}, '${c.name}')" style="background:none; border:1px solid var(--gold); color:var(--gold); padding:5px 10px; border-radius:5px; font-size:10px;">RUTINA</button>
+                             </div>`;
+            list.appendChild(div);
         });
-    } else {
-        html += "<p>No hay alumnos. Crea el primero arriba.</p>";
     }
-    content.innerHTML = html;
 }
 
-function addClient() {
-    const name = prompt("Nombre del alumno:");
-    const pin = prompt("PIN para el alumno (4 números):");
+async function addClient() {
+    const name = prompt("Nombre del Alumno:");
+    const pin = prompt("PIN para el Alumno (4 números):");
     if(name && pin) {
-        sb.from('training_clients').insert([{name, pin}]).then(() => showCoach());
+        await sb.from('training_clients').insert([{name, pin}]);
+        showToast("¡Alumno Guardado!");
+        showCoachPanel();
     }
 }
 
-async function showClient(u) {
+// VISTA DEL ALUMNO (LO QUE ELLOS VEN)
+async function showClientView() {
+    document.getElementById('top-title').innerText = "MI ENTRENAMIENTO";
     const content = document.getElementById('app-content');
-    content.innerHTML = `<h2>Hola, ${u.name}</h2><p>Cargando tu rutina...</p>`;
-    // Aquí iría la carga de rutinas que ya configuramos
+    content.innerHTML = `<h2 class="section-title">Hola, ${currentUser.name} 🥊</h2><div id="workout-area"></div>`;
+    // Aquí cargaríamos sus rutinas...
 }
+
+function showToast(m) { const t = document.getElementById('toast'); t.innerText = m; t.style.opacity = 1; setTimeout(()=>t.style.opacity=0, 2500); }
+function logout() { localStorage.clear(); location.reload(); }
+
+// Autologin
+const savedSess = localStorage.getItem('cbc_session');
+if(savedSess) { document.getElementById('pin-input').value = savedSess; doLogin(); }
 </script>
 </body>
 </html>
