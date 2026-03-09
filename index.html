@@ -227,7 +227,7 @@ body { font-family:'Montserrat',sans-serif; background:var(--black); color:var(-
   padding:0 14px 12px;
   display:none;
 }
-.exercise-card.expanded .video-wrap { display:block; }
+.video-wrap.visible { display:block; }
 .video-wrap iframe {
   width:100%;
   height:180px;
@@ -666,27 +666,34 @@ const sb = supabase.createClient('https://btdtpruxntodjuzomdcq.supabase.co', 'sb
 let clients = [];
 let routines = [];
 let progress = [];
-let completions = JSON.parse(localStorage.getItem('cbc_t_completions') || '{}');
+let completions = {}; // loaded from Supabase
 let isTrainer = localStorage.getItem('cbc_t_mode') !== 'client';
 let currentClientId = null;
 let currentDay = null;
 let exRowCount = 0;
 
 function saveAll() {
-  localStorage.setItem('cbc_t_completions', JSON.stringify(completions));
+  // completions saved to Supabase
 }
 
 async function loadAllData() {
   showToast('⏳ Cargando...');
   try {
-    const [cr, rr, pr] = await Promise.all([
+    const [cr, rr, pr, compr] = await Promise.all([
       sb.from('training_clients').select('*'),
       sb.from('training_routines').select('*'),
       sb.from('training_progress').select('*'),
+      sb.from('training_completions').select('*'),
     ]);
     clients = cr.data || [];
     routines = rr.data || [];
     progress = pr.data || [];
+    // Build completions object from DB rows
+    completions = {};
+    (compr.data || []).forEach(row => {
+      const key = `${row.clientId}_${row.routineId}_${row.date}`;
+      completions[key] = row.exercises || [];
+    });
   } catch(e) {
     showToast('✗ Error de conexión');
     console.error(e);
@@ -838,10 +845,10 @@ function renderWorkout(client, myRoutines) {
           <div class="ex-name">${ex.name}</div>
           <div class="ex-sets">${ex.sets}</div>
         </div>
-        ${ex.video ? `<button class="ex-video-btn" onclick="event.stopPropagation();toggleExercise('ex-${activeRoutine.id}-${i}')">▶ Video</button>` : ''}
+        ${ex.video ? `<button class="ex-video-btn" onclick="event.stopPropagation();toggleVideo('vid-${activeRoutine.id}-${i}')">▶ Video</button>` : ''}
       </div>
-      ${ex.notes ? `<div class="ex-notes">💡 ${ex.notes}</div>` : ''}
-      ${videoId ? `<div class="video-wrap"><iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen loading="lazy"></iframe></div>` : ''}
+      ${ex.notes ? `<div class="ex-notes" style="display:block;padding:0 14px 8px 54px;font-size:11px;color:var(--gray2);">💡 ${ex.notes}</div>` : ''}
+      ${videoId ? `<div class="video-wrap" id="vid-${activeRoutine.id}-${i}"><iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen loading="lazy"></iframe></div>` : ''}
     </div>`;
   }).join('');
 
@@ -898,13 +905,41 @@ function toggleExercise(id) {
   if (card) card.classList.toggle('expanded');
 }
 
-function toggleDone(key, index, routineId, clientId) {
+function toggleVideo(id) {
+  const wrap = document.getElementById(id);
+  if (wrap) wrap.classList.toggle('visible');
+}
+
+async function toggleDone(key, index, routineId, clientId) {
   if (!completions[key]) completions[key] = [];
   const arr = completions[key];
   const i = arr.indexOf(index);
   if (i === -1) { arr.push(index); showToast('✓ Ejercicio completado'); }
   else { arr.splice(i, 1); }
-  saveAll();
+
+  // Save to Supabase
+  const todayKey = new Date().toISOString().split('T')[0];
+  const existing = await sb.from('training_completions')
+    .select('id')
+    .eq('clientId', clientId)
+    .eq('routineId', routineId)
+    .eq('date', todayKey)
+    .single();
+
+  if (existing.data) {
+    await sb.from('training_completions')
+      .update({ exercises: completions[key] })
+      .eq('id', existing.data.id);
+  } else {
+    await sb.from('training_completions').insert([{
+      id: Date.now(),
+      clientId,
+      routineId,
+      date: todayKey,
+      exercises: completions[key]
+    }]);
+  }
+
   // Re-render workout
   const client = clients.find(c => c.id === clientId);
   const myRoutines = routines.filter(r => r.clientId === clientId);
