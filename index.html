@@ -552,6 +552,11 @@ body.trainer-mode .client-only { display:none; }
     </div>
 
     <div class="section-title">📋 Rutinas Guardadas</div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <select class="form-input" id="filter-routines-client" onchange="renderSavedRoutines()">
+        <option value="">— Todos los clientes —</option>
+      </select>
+    </div>
     <div id="saved-routines-list"></div>
   </div>
 
@@ -912,8 +917,9 @@ function renderWorkout(client, myRoutines) {
 
   const trainerBtns = isTrainer ? `
     <div class="btn-row trainer-only" style="margin-top:16px;">
-      <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openLogProgress(${client.id})">📊 Registrar medidas</button>
-      <button class="btn btn-outline btn-sm" style="flex:1;" onclick="sendWA(${client.id})">💬 WhatsApp</button>
+      <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openLogProgress(${client.id})">📊 Medidas</button>
+      <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openEditRoutine(${activeRoutine.id})">✏️ Editar</button>
+      <button class="btn btn-sm" style="flex:1;background:#25d366;color:white;border:none;border-radius:8px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;" onclick="sendWA(${client.id})">💬 WA</button>
     </div>` : `
     <div class="btn-row client-only" style="margin-top:16px;">
       <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openLogProgress(${client.id})">📊 Mis medidas</button>
@@ -1186,11 +1192,20 @@ async function saveRoutine() {
 
 function renderSavedRoutines() {
   const list = document.getElementById('saved-routines-list');
-  if (routines.length === 0) {
-    list.innerHTML = '<div class="empty-state"><div class="ei">📋</div><p>Sin rutinas aún.</p></div>';
+  // Populate filter dropdown
+  const filterSel = document.getElementById('filter-routines-client');
+  if (filterSel) {
+    const currentVal = filterSel.value;
+    filterSel.innerHTML = '<option value="">— Todos los clientes —</option>' +
+      clients.map(c => `<option value="${c.id}" ${String(c.id) === currentVal ? 'selected' : ''}>${c.name}</option>`).join('');
+  }
+  const filterId = filterSel ? filterSel.value : '';
+  const filtered = filterId ? routines.filter(r => String(r.clientId) === filterId) : routines;
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="ei">📋</div><p>Sin rutinas para este cliente.</p></div>';
     return;
   }
-  list.innerHTML = sortByDay(routines).map(r => {
+  list.innerHTML = sortByDay(filtered).map(r => {
     const client = clients.find(c => String(c.id) === String(r.clientId));
     return `<div class="card" style="padding:14px;">
       <div style="margin-bottom:10px;">
@@ -1312,9 +1327,12 @@ function openEditRoutine(id) {
 // ========= UTILS =========
 function populateSelects() {
   const opts = clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-  ['routine-client-sel', 'progress-client-sel'].forEach(id => {
+  ['routine-client-sel', 'progress-client-sel', 'filter-routines-client'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = (id === 'progress-client-sel' ? '<option value="">-- Selecciona --</option>' : '') + opts;
+    if (!el) return;
+    const needsBlank = id === 'progress-client-sel' || id === 'filter-routines-client';
+    const blank = id === 'progress-client-sel' ? '<option value="">-- Selecciona --</option>' : '<option value="">— Todos los clientes —</option>';
+    el.innerHTML = (needsBlank ? blank : '') + opts;
   });
 }
 
