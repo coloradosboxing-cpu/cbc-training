@@ -713,9 +713,7 @@ async function dbDelete(table, id) {
 
 // ========= MODE =========
 function toggleMode() {
-  isTrainer = !isTrainer;
-  localStorage.setItem('cbc_t_mode', isTrainer ? 'trainer' : 'client');
-  applyMode();
+  // Mode is controlled by PIN login only
 }
 
 function applyMode() {
@@ -1147,29 +1145,37 @@ window.addEventListener('click', e => {
 // ========= PIN LOGIN =========
 const TRAINER_PIN = '1234'; // Cambia este PIN — es el tuyo como entrenador
 
-function doLogin() {
+async function doLogin() {
   const pin = document.getElementById('pin-input').value.trim();
   const err = document.getElementById('login-error');
+  const btn = document.querySelector('#login-screen button');
+  if (btn) { btn.textContent = 'VERIFICANDO...'; btn.disabled = true; }
 
   if (pin === TRAINER_PIN) {
     isTrainer = true;
     localStorage.setItem('cbc_t_mode', 'trainer');
     localStorage.setItem('cbc_t_pin', pin);
-    hideLogin();
+    await hideLogin();
     return;
   }
 
-  // Check client PINs
+  // Need to load clients from Supabase first to check PINs
+  try {
+    const { data } = await sb.from('training_clients').select('*');
+    clients = data || [];
+  } catch(e) { clients = []; }
+
   const client = clients.find(c => c.pin === pin);
   if (client) {
     isTrainer = false;
     localStorage.setItem('cbc_t_mode', 'client');
     localStorage.setItem('cbc_t_pin', pin);
-    localStorage.setItem('cbc_t_client_id', client.id);
-    hideLogin();
+    localStorage.setItem('cbc_t_client_id', String(client.id));
+    await hideLogin();
     return;
   }
 
+  if (btn) { btn.textContent = 'ENTRAR'; btn.disabled = false; }
   err.style.display = 'block';
   document.getElementById('pin-input').value = '';
   setTimeout(() => err.style.display = 'none', 3000);
@@ -1184,9 +1190,10 @@ async function hideLogin() {
   // If client, go directly to their workout
   if (!isTrainer) {
     const clientId = parseInt(localStorage.getItem('cbc_t_client_id'));
-    if (clientId) {
+    const client = clients.find(c => String(c.id) === String(clientId));
+    if (client) {
       renderClients();
-      openClientWorkout(clientId);
+      openClientWorkout(client.id);
       return;
     }
   }
@@ -1201,16 +1208,16 @@ function logout() {
   location.reload();
 }
 
+// Allow enter key always
+document.getElementById('pin-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
 // Check if already logged in
 const savedPin = localStorage.getItem('cbc_t_pin');
 if (savedPin) {
   document.getElementById('pin-input').value = savedPin;
   doLogin();
-} else {
-  // Allow enter key
-  document.getElementById('pin-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doLogin();
-  });
 }
 
 // ========= INIT =========
