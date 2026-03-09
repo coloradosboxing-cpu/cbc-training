@@ -523,6 +523,8 @@ async function doLogin() {
     }
 
     clients = result.data;
+    console.log('PINs en BD:', clients.map(c=>({name:c.name, pin:c.pin, tipo:typeof c.pin})));
+    console.log('PIN ingresado:', pin, typeof pin);
     const client = clients.find(c=>String(c.pin)===String(pin));
     if (client) {
       isTrainer=false;
@@ -636,8 +638,8 @@ async function addClient() {
   const pin=document.getElementById('new-client-pin').value.trim();
   if(!name){showToast('Ingresa el nombre');return;}
   if(!pin){showToast('Ingresa un PIN');return;}
-  if(clients.find(c=>c.pin===pin)){showToast('PIN ya en uso');return;}
-  const client={id:Date.now(),name,goal:document.getElementById('new-client-goal').value,phone:document.getElementById('new-client-phone').value.trim(),pin};
+  if(clients.find(c=>String(c.pin)===String(pin))){showToast('PIN ya en uso');return;}
+  const client={id:Date.now(),name,goal:document.getElementById('new-client-goal').value,phone:document.getElementById('new-client-phone').value.trim(),pin:String(pin)};
   if(!await dbInsert('training_clients',client)) return;
   clients.push(client);
   closeModal('modal-add-client');
@@ -661,9 +663,9 @@ async function saveEditClient() {
   const name=document.getElementById('edit-client-name').value.trim();
   const pin=document.getElementById('edit-client-pin').value.trim();
   if(!name||!pin){showToast('Completa todos los campos');return;}
-  if(clients.find(c=>c.pin===pin&&c.id!==id)){showToast('PIN ya en uso');return;}
+  if(clients.find(c=>String(c.pin)===String(pin)&&c.id!==id)){showToast('PIN ya en uso');return;}
   const c=clients.find(c=>c.id===id);
-  const updated={...c,name,goal:document.getElementById('edit-client-goal').value,phone:document.getElementById('edit-client-phone').value.trim(),pin};
+  const updated={...c,name,goal:document.getElementById('edit-client-goal').value,phone:document.getElementById('edit-client-phone').value.trim(),pin:String(pin)};
   if(!await dbUpdate('training_clients',updated)) return;
   clients[clients.findIndex(c=>c.id===id)]=updated;
   closeModal('modal-edit-client');
