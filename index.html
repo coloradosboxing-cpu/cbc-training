@@ -512,7 +512,7 @@ body.trainer-mode .client-only { display:none; }
   <!-- PAGE: PROGRESO -->
   <div class="page" id="page-progreso">
     <div class="section-title">📊 Progreso</div>
-    <div id="progress-client-select" style="margin-bottom:16px;">
+    <div id="progress-client-select" style="margin-bottom:16px;" class="trainer-only">
       <div class="form-group">
         <label class="form-label">Seleccionar Cliente</label>
         <select class="form-input" id="progress-client-sel" onchange="loadProgressView()">
@@ -532,14 +532,17 @@ body.trainer-mode .client-only { display:none; }
       <input type="hidden" id="editing-routine-id" value="">
       <div class="form-group">
         <label class="form-label">Cliente</label>
-        <select class="form-input" id="routine-client-sel"></select>
+        <select class="form-input" id="routine-client-sel" onchange="updateAvailableDays()" ></select>
       </div>
       <div class="form-group">
         <label class="form-label">Día</label>
-        <select class="form-input" id="routine-day-sel">
+        <select class="form-input" id="routine-day-sel" onchange="checkDayAvailable()">
           <option>Lunes</option><option>Martes</option><option>Miércoles</option>
           <option>Jueves</option><option>Viernes</option><option>Sábado</option><option>Domingo</option>
         </select>
+        <div id="day-warning" style="font-size:11px;color:#e74c3c;margin-top:5px;display:none;">
+          ⚠️ Este día ya tiene rutina — usa ✏️ Editar en Rutinas Guardadas
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Enfoque del día</label>
@@ -794,8 +797,14 @@ function showPage(page, btn) {
   document.getElementById('page-' + page).classList.add('active');
   btn.classList.add('active');
   document.getElementById('main-scroll').scrollTop = 0;
-  if (page === 'ajustes') renderSavedRoutines();
-  if (page === 'progreso') loadProgressView();
+  if (page === 'ajustes') { renderSavedRoutines(); }
+  if (page === 'progreso') {
+    if (currentClientId) {
+      const progSel = document.getElementById('progress-client-sel');
+      if (progSel) progSel.value = currentClientId;
+    }
+    loadProgressView();
+  }
 }
 
 // ========= CLIENTS =========
@@ -862,6 +871,9 @@ function openClientWorkout(clientId) {
   document.getElementById('client-select-view').style.display = 'none';
   document.getElementById('workout-view').style.display = 'block';
   document.getElementById('main-scroll').scrollTop = 0;
+  // Auto-select this client in progress view
+  const progSel = document.getElementById('progress-client-sel');
+  if (progSel) { progSel.value = clientId; }
 
   if (myRoutines.length === 0) {
     document.getElementById('workout-content').innerHTML = `
@@ -1322,6 +1334,35 @@ function openEditRoutine(id) {
   document.querySelector('.nav-btn:last-child').classList.add('active');
   document.getElementById('main-scroll').scrollTop = 0;
   showToast('✏️ Modifica y toca ACTUALIZAR RUTINA');
+}
+
+// ========= DAY AVAILABILITY =========
+function updateAvailableDays() {
+  checkDayAvailable();
+}
+
+function checkDayAvailable() {
+  const editingId = document.getElementById('editing-routine-id').value;
+  if (editingId) {
+    // Editing existing — all days allowed
+    document.getElementById('day-warning').style.display = 'none';
+    return;
+  }
+  const clientId = document.getElementById('routine-client-sel').value;
+  const day = document.getElementById('routine-day-sel').value;
+  if (!clientId || !day) return;
+  const used = routines.find(r => String(r.clientId) === String(clientId) && r.day === day);
+  const warning = document.getElementById('day-warning');
+  const saveBtn = document.getElementById('save-routine-btn');
+  if (used) {
+    warning.style.display = 'block';
+    saveBtn.disabled = true;
+    saveBtn.style.opacity = '0.5';
+  } else {
+    warning.style.display = 'none';
+    saveBtn.disabled = false;
+    saveBtn.style.opacity = '1';
+  }
 }
 
 // ========= UTILS =========
