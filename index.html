@@ -527,14 +527,18 @@ async function doLogin() {
 async function afterLogin() {
   document.getElementById('login-screen').style.display='none';
   showToast('⏳ Cargando...');
-  await loadAllData();
+  try {
+    await loadAllData();
+  } catch(e) {
+    console.error('loadAllData error:', e);
+  }
   applyMode();
   populateSelects();
   populateWeekSelectors();
   if (!isTrainer) {
     const cid = localStorage.getItem('cbc_client_id');
     const client = clients.find(c=>String(c.id)===cid);
-    if (client) { renderClients(); openClientWorkout(client.id); return; }
+    if (client) { renderClients(); openClientWorkout(client.id); showToast('✓ Bienvenido'); return; }
   }
   renderClients();
   showToast('✓ Bienvenido');
@@ -1369,6 +1373,7 @@ function populateSelects(){
 
 function showToast(msg){
   const t=document.getElementById('toast');
+  if(!t) return;
   t.textContent=msg; t.style.opacity='1';
   clearTimeout(t._t);
   t._t=setTimeout(()=>t.style.opacity='0',2500);
