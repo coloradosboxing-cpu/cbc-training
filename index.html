@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CBC Training">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:; connect-src *;">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
 <style>
@@ -439,8 +440,12 @@ body.trainer-mode .client-only{display:none;}
 </div>
 
 <script>
-const sb = supabase.createClient('https://btdtpruxntodjuzomdcq.supabase.co','sb_publishable_NA4niv3lN1R5OUkwJH8ihA_d547f1h4');
+// supabase client kept for compatibility but all calls use direct fetch
+const sb = null;
 const TRAINER_PIN = '1234';
+const SB_URL = 'https://btdtpruxntodjuzomdcq.supabase.co/rest/v1';
+const SB_KEY = 'sb_publishable_NA4niv3lN1R5OUkwJH8ihA_d547f1h4';
+const SB_HDR = {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};
 const DAY_ORDER = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 const DAY_NAMES_JS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 
@@ -466,32 +471,68 @@ function getWeekRange(week) {
 
 function sortByDay(arr) { return [...arr].sort((a,b)=>DAY_ORDER.indexOf(a.day)-DAY_ORDER.indexOf(b.day)); }
 
-async function dbInsert(t,r) { const {error}=await sb.from(t).insert([r]); if(error){showToast('✗ Error');console.error(error);return false;} return true; }
-async function dbUpdate(t,r) { const {error}=await sb.from(t).update(r).eq('id',r.id); if(error){showToast('✗ Error');console.error(error);return false;} return true; }
-async function dbDelete(t,id) { const {error}=await sb.from(t).delete().eq('id',id); if(error){showToast('✗ Error');console.error(error);return false;} return true; }
+async function dbInsert(t,r) {
+  try {
+    const res = await fetch(`https://btdtpruxntodjuzomdcq.supabase.co/rest/v1/${t}`,{
+      method:'POST',
+      headers:{...SB_HDR,'Prefer':'return=minimal'},
+      body:JSON.stringify(r)
+    });
+    if(!res.ok){const e=await res.text();showToast('✗ Error');console.error(e);return false;}
+    return true;
+  } catch(e){showToast('✗ Error');console.error(e);return false;}
+}
+async function dbUpdate(t,r) {
+  try {
+    const res = await fetch(`https://btdtpruxntodjuzomdcq.supabase.co/rest/v1/${t}?id=eq.${r.id}`,{
+      method:'PATCH',
+      headers:{...SB_HDR,'Prefer':'return=minimal'},
+      body:JSON.stringify(r)
+    });
+    if(!res.ok){const e=await res.text();showToast('✗ Error');console.error(e);return false;}
+    return true;
+  } catch(e){showToast('✗ Error');console.error(e);return false;}
+}
+async function dbDelete(t,id) {
+  try {
+    const res = await fetch(`https://btdtpruxntodjuzomdcq.supabase.co/rest/v1/${t}?id=eq.${id}`,{
+      method:'DELETE',
+      headers:{...SB_HDR,'Prefer':'return=minimal'}
+    });
+    if(!res.ok){const e=await res.text();showToast('✗ Error');console.error(e);return false;}
+    return true;
+  } catch(e){showToast('✗ Error');console.error(e);return false;}
+}
+
+
+async function sbFetch(table, params='') {
+  const r = await fetch(`${SB_URL}/${table}?${params}`,{mode:'cors',cache:'no-store',headers:SB_HDR});
+  if (!r.ok) throw new Error(`${table} ${r.status}`);
+  return r.json();
+}
 
 async function loadAllData() {
   try {
     const [cr,rr,pr,compr,mr,rr2,libr,tmplr,tmplrr] = await Promise.all([
-      sb.from('training_clients').select('*'),
-      sb.from('training_routines').select('*'),
-      sb.from('training_progress').select('*'),
-      sb.from('training_completions').select('*'),
-      sb.from('training_messages').select('*').order('id',{ascending:false}),
-      sb.from('training_ratings').select('*'),
-      sb.from('training_exercises').select('*'),
-      sb.from('training_templates').select('*'),
-      sb.from('training_template_routines').select('*'),
+      sbFetch('training_clients','select=*'),
+      sbFetch('training_routines','select=*'),
+      sbFetch('training_progress','select=*'),
+      sbFetch('training_completions','select=*'),
+      sbFetch('training_messages','select=*&order=id.desc'),
+      sbFetch('training_ratings','select=*'),
+      sbFetch('training_exercises','select=*'),
+      sbFetch('training_templates','select=*'),
+      sbFetch('training_template_routines','select=*'),
     ]);
-    clients=cr.data||[]; routines=rr.data||[]; progress=pr.data||[];
-    messages=mr.data||[]; ratings=rr2.data||[]; exerciseLibrary=libr.data||[];
-    templates=tmplr.data||[]; templateRoutines=tmplrr.data||[];
+    clients=cr||[]; routines=rr||[]; progress=pr||[];
+    messages=mr||[]; ratings=rr2||[]; exerciseLibrary=libr||[];
+    templates=tmplr||[]; templateRoutines=tmplrr||[];
     completions={};
-    (compr.data||[]).forEach(row=>{
+    (compr||[]).forEach(row=>{
       const key=`${row.clientId}_${row.routineId}_${row.date}`;
       completions[key]=row.exercises||[];
     });
-  } catch(e) { showToast('✗ Error de conexión'); console.error(e); }
+  } catch(e) { showToast('✗ Error de conexión'); console.error('loadAllData:',e); }
 }
 
 // ─── LOGIN ───
@@ -526,7 +567,7 @@ async function doLogin() {
     try {
       const res = await fetch(
         'https://btdtpruxntodjuzomdcq.supabase.co/rest/v1/training_clients?select=id,name,pin,goal,phone,photo',
-        {headers:{'apikey':'sb_publishable_NA4niv3lN1R5OUkwJH8ihA_d547f1h4','Authorization':'Bearer sb_publishable_NA4niv3lN1R5OUkwJH8ihA_d547f1h4'}}
+        {headers:{...SB_HDR}}
       );
       if (res.ok) { const d=await res.json(); if(d&&d.length) allClients=d; }
     } catch(e) { console.error('Fetch error:',e); }
@@ -697,8 +738,8 @@ async function deleteClient(id) {
   const c=clients.find(c=>c.id===id);
   if(!confirm(`¿Eliminar a ${c?.name}?`)) return;
   await dbDelete('training_clients',id);
-  await sb.from('training_routines').delete().eq('clientId',id);
-  await sb.from('training_progress').delete().eq('clientId',id);
+  await fetch(`https://btdtpruxntodjuzomdcq.supabase.co/rest/v1/training_routines?clientId=eq.${id}`,{method:'DELETE',headers:{...SB_HDR}});
+  await fetch(`https://btdtpruxntodjuzomdcq.supabase.co/rest/v1/training_progress?clientId=eq.${id}`,{method:'DELETE',headers:{...SB_HDR}});
   clients=clients.filter(c=>c.id!==id);
   routines=routines.filter(r=>String(r.clientId)!==String(id));
   progress=progress.filter(p=>String(p.clientId)!==String(id));
@@ -862,12 +903,15 @@ async function toggleDone(key,index,routineId,clientId){
   else{arr.splice(i,1);}
 
   const todayStr=new Date().toISOString().split('T')[0];
-  const {data:existing}=await sb.from('training_completions').select('id').eq('clientId',clientId).eq('routineId',routineId).eq('date',todayStr).maybeSingle();
-  if(existing){
-    await sb.from('training_completions').update({exercises:completions[key]}).eq('id',existing.id);
-  } else {
-    await sb.from('training_completions').insert([{id:Date.now(),clientId,routineId,date:todayStr,exercises:completions[key]}]);
-  }
+  try {
+    const exRes = await fetch(`https://btdtpruxntodjuzomdcq.supabase.co/rest/v1/training_completions?select=id&clientId=eq.${clientId}&routineId=eq.${routineId}&date=eq.${todayStr}&limit=1`,{headers:{...SB_HDR}});
+    const exData = exRes.ok ? await exRes.json() : [];
+    if(exData && exData.length){
+      await fetch(`https://btdtpruxntodjuzomdcq.supabase.co/rest/v1/training_completions?id=eq.${exData[0].id}`,{method:'PATCH',headers:{...SB_HDR,'Prefer':'return=minimal'},body:JSON.stringify({exercises:completions[key]})});
+    } else {
+      await fetch('https://btdtpruxntodjuzomdcq.supabase.co/rest/v1/training_completions',{method:'POST',headers:{...SB_HDR,'Prefer':'return=minimal'},body:JSON.stringify({id:Date.now(),clientId,routineId,date:todayStr,exercises:completions[key]})});
+    }
+  } catch(e){ console.error('completion save:',e); }
 
   const client=clients.find(c=>c.id===clientId);
   renderWorkout(client,routines.filter(r=>String(r.clientId)===String(clientId)),currentWeek);
@@ -1434,10 +1478,7 @@ document.getElementById('login-screen').style.display='flex';
   try {
     const res = await fetch(
       'https://btdtpruxntodjuzomdcq.supabase.co/rest/v1/training_clients?select=id,name,pin,goal,phone,photo',
-      { headers: {
-        'apikey': 'sb_publishable_NA4niv3lN1R5OUkwJH8ihA_d547f1h4',
-        'Authorization': 'Bearer sb_publishable_NA4niv3lN1R5OUkwJH8ihA_d547f1h4'
-      }}
+      { mode:'cors', cache:'no-store', headers: SB_HDR }
     );
     if (res.ok) {
       const data = await res.json();
