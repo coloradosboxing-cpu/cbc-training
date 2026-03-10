@@ -356,6 +356,23 @@ body.trainer-mode .client-only{display:none;}
       <span style="font-size:20px;">📲</span> CONTACTAR AL ENTRENADOR
     </button>
   </div>
+
+  <!-- PROMO BANNER - shown when reto is completed -->
+  <div id="reto-promo-banner" style="display:none;margin-top:8px;margin-bottom:16px;">
+    <div style="background:linear-gradient(135deg,#1a0a00,#2d1500);border:2px solid var(--gold);border-radius:16px;padding:20px;text-align:center;position:relative;overflow:hidden;">
+      <div style="position:absolute;font-size:80px;opacity:0.05;top:-10px;right:-10px;">🥊</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--gold);letter-spacing:3px;margin-bottom:6px;">🏆 ¡RETO COMPLETADO!</div>
+      <div style="font-size:14px;color:var(--white);font-weight:700;margin-bottom:8px;">¿Listo para el siguiente nivel?</div>
+      <div style="font-size:12px;color:var(--gray2);margin-bottom:16px;line-height:1.6;">
+        Completaste el reto — ahora imagina lo que puedes lograr con un programa de entrenamiento 
+        <strong style="color:var(--gold)">personalizado para ti</strong>, con seguimiento semanal y rutinas diseñadas para tus objetivos.
+      </div>
+      <button onclick="upgradeToClient()" style="width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,#c9952a,#8a6009);color:#000;font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;border:none;cursor:pointer;margin-bottom:8px;">
+        💪 QUIERO RUTINAS PERSONALIZADAS
+      </button>
+      <div style="font-size:11px;color:var(--gray2);">Te contactamos por WhatsApp para comenzar</div>
+    </div>
+  </div>
 </div>
 
 <div class="page" id="page-reto-ranking">
@@ -1720,6 +1737,17 @@ function sendRetoWhatsApp(clientId) {
   window.open('https://wa.me/' + phone + '?text=' + msg, '_blank');
 }
 
+
+function upgradeToClient() {
+  const name = retoClient ? retoClient.name.split(' ')[0] : '';
+  const msg = encodeURIComponent(
+    '🏆 ¡Hola! Acabo de completar el *Reto 21 Días Sin Excusas* de Colorado\'s Boxing Club.\n\n' +
+    '💪 Me interesa continuar con *rutinas personalizadas*.\n\n' +
+    '¿Me puedes dar más información? 🥊'
+  );
+  window.open('https://wa.me/' + TRAINER_WHATSAPP + '?text=' + msg, '_blank');
+}
+
 function contactTrainer() {
   const msg = encodeURIComponent(
     '¡Hola! Soy participante del Reto 21 Días de Colorado\'s Boxing Club 🥊'
@@ -2000,6 +2028,15 @@ function renderRetoEjercicios() {
   const btn=document.getElementById('reto-complete-btn');
   if(alreadyDone){btn.textContent='✅ DÍA COMPLETADO';btn.disabled=true;btn.style.background='var(--success)';}
   else{btn.textContent='MARCAR DÍA COMPLETO';btn.disabled=false;btn.style.background='';window._rexDone={};}
+
+  // Show upgrade banner if reto completed (21 days done) or on day 21
+  const promoBanner = document.getElementById('reto-promo-banner');
+  if(promoBanner){
+    const uniqueDays = new Set(retoCompletions.map(c=>Number(c.day_num))).size;
+    const retoCompleted = retoCompletions.length >= 21 || uniqueDays >= 21 || (day === 21 && alreadyDone);
+    promoBanner.style.display = retoCompleted ? 'block' : 'none';
+    if(retoCompleted) setTimeout(()=>{ promoBanner.scrollIntoView({behavior:'smooth',block:'nearest'}); },400);
+  }
 }
 function toggleRetoEx(i){
   if(!window._rexDone) window._rexDone={};
