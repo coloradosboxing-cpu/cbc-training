@@ -1903,8 +1903,10 @@ async function afterLoginReto() {
 
 function getRetoDay() {
   if (!retoClient||!retoClient.start_date) return 1;
-  const s=new Date(retoClient.start_date); s.setHours(0,0,0,0);
-  const t=new Date(); t.setHours(0,0,0,0);
+  // Parse date as local to avoid UTC offset issues
+  const parts = retoClient.start_date.split('-');
+  const s = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+  const t = new Date(); t.setHours(0,0,0,0);
   return Math.max(1,Math.min(21,Math.floor((t-s)/86400000)+1));
 }
 function getRetoStreak() {
