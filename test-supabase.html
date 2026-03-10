@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{background:#111;color:#fff;font-family:monospace;padding:20px;font-size:14px;}
+.ok{color:#2ecc71;}.err{color:#e74c3c;}.info{color:#f39c12;}
+button{background:#c9952a;color:#000;border:none;padding:15px 30px;font-size:16px;font-weight:bold;border-radius:8px;margin:10px 0;width:100%;}
+pre{background:#222;padding:10px;border-radius:5px;word-break:break-all;white-space:pre-wrap;}
+</style>
+</head>
+<body>
+<h2>🔍 Supabase Test</h2>
+<button onclick="runTest()">PROBAR CONEXIÓN</button>
+<div id="out"></div>
+<script>
+const SB_URL = 'https://btdtpruxntodjuzomdcq.supabase.co/rest/v1';
+const SB_KEY = 'sb_publishable_NA4niv3lN1R5OUkwJH8ihA_d547f1h4';
+
+function log(msg, cls='info') {
+  document.getElementById('out').innerHTML += `<p class="${cls}">${msg}</p>`;
+}
+
+async function runTest() {
+  document.getElementById('out').innerHTML = '';
+  log('Iniciando pruebas...');
+
+  // Test 1: fetch sin headers
+  log('TEST 1: fetch sin headers (como navegador)...');
+  try {
+    const url = `${SB_URL}/training_clients?select=id,name,pin&apikey=${SB_KEY}`;
+    log('URL: ' + url.substring(0,80)+'...');
+    const r = await fetch(url);
+    log(`Status: ${r.status}`, r.ok ? 'ok' : 'err');
+    const txt = await r.text();
+    log('Respuesta: <pre>'+txt.substring(0,300)+'</pre>', r.ok ? 'ok' : 'err');
+  } catch(e) {
+    log('ERROR: ' + e.name + ' — ' + e.message, 'err');
+    log('Stack: ' + (e.stack||'').substring(0,200), 'err');
+  }
+
+  // Test 2: fetch con Content-Type
+  log('TEST 2: fetch con Accept header...');
+  try {
+    const url = `${SB_URL}/training_clients?select=id,name,pin&apikey=${SB_KEY}`;
+    const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    log(`Status: ${r.status}`, r.ok ? 'ok' : 'err');
+    const txt = await r.text();
+    log('Respuesta: <pre>'+txt.substring(0,300)+'</pre>', r.ok ? 'ok' : 'err');
+  } catch(e) {
+    log('ERROR: ' + e.name + ' — ' + e.message, 'err');
+  }
+
+  // Test 3: XMLHttpRequest
+  log('TEST 3: XMLHttpRequest...');
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', `${SB_URL}/training_clients?select=id,name,pin&apikey=${SB_KEY}`, true);
+  xhr.timeout = 10000;
+  xhr.onload = () => log('XHR Status: '+xhr.status+' — '+xhr.responseText.substring(0,200), xhr.status<300?'ok':'err');
+  xhr.onerror = () => log('XHR onerror disparado', 'err');
+  xhr.ontimeout = () => log('XHR timeout', 'err');
+  xhr.send();
+
+  log('✅ Pruebas enviadas, esperando respuestas...');
+}
+</script>
+</body>
+</html>
