@@ -576,27 +576,30 @@ async function doLogin() {
     return;
   }
 
-  // ── CLIENT ── use SDK (most reliable on Android)
+  // ── CLIENT ── direct fetch with retries and visible error
   let allClients = [];
-  try {
-    const client_sb = getSB();
-    if (client_sb) {
-      const { data, error } = await client_sb.from('training_clients').select('id,name,pin,goal,phone,photo');
-      if (!error && Array.isArray(data)) allClients = data;
-    }
-  } catch(e) {}
-
-  // fallback to direct fetch if SDK failed
-  if (!allClients.length) {
+  let lastError = '';
+  for (let attempt = 1; attempt <= 3; attempt++) {
     try {
+      btn.textContent = 'INTENTO ' + attempt + '/3...';
       const url = SB_URL + '/training_clients?select=id,name,pin,goal,phone,photo&apikey=' + SB_KEY;
       const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-      if (res.ok) { const d = await res.json(); if (Array.isArray(d)) allClients = d; }
-    } catch(e) {}
+      lastError = 'HTTP ' + res.status;
+      if (res.ok) {
+        const d = await res.json();
+        if (Array.isArray(d) && d.length) { allClients = d; break; }
+        else lastError = 'Array vacío';
+      }
+    } catch(e) {
+      lastError = e.name + ': ' + e.message;
+      if (attempt < 3) await new Promise(r => setTimeout(r, 1000));
+    }
   }
 
   if (!allClients.length) {
-    showToast('⚠️ Sin conexión. Intenta de nuevo.');
+    showToast('Error: ' + lastError);
+    err.textContent = 'Error: ' + lastError;
+    err.style.display = 'block';
     btn.textContent='ENTRAR'; btn.disabled=false;
     return;
   }
