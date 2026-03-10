@@ -127,6 +127,12 @@ textarea.form-input{resize:vertical;min-height:80px;}
 body.trainer-mode .trainer-only{display:block;}
 body.trainer-mode .client-only{display:none;}
 
+
+.reto-level-btn{flex:1;padding:10px 6px;border-radius:10px;border:2px solid #333;background:transparent;color:var(--gray);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all 0.2s;text-align:center;}
+.reto-level-btn.active-principiante{border-color:#2E7D32;background:rgba(46,125,50,0.2);color:#4CAF50;}
+.reto-level-btn.active-intermedio{border-color:#F57F17;background:rgba(245,127,23,0.2);color:#FFA726;}
+.reto-level-btn.active-avanzado{border-color:#C62828;background:rgba(198,40,40,0.2);color:#EF5350;}
+
 /* ═══ RETO 21 DÍAS ═══ */
 .reto-hero{background:linear-gradient(135deg,#1a0a00,#2d1500);border:1px solid rgba(201,149,42,0.4);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;position:relative;overflow:hidden;}
 .reto-hero::before{content:'🔥';position:absolute;font-size:80px;opacity:0.06;top:-10px;right:-10px;}
@@ -336,6 +342,12 @@ body.trainer-mode .client-only{display:none;}
   </div>
   <div>
     <div class="section-title">💪 Rutina de Hoy</div>
+    <!-- Level selector -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;" id="reto-level-selector">
+      <button class="reto-level-btn" id="lvl-principiante" onclick="setRetoLevel('principiante')">🟢 Principiante</button>
+      <button class="reto-level-btn" id="lvl-intermedio" onclick="setRetoLevel('intermedio')">🟡 Intermedio</button>
+      <button class="reto-level-btn" id="lvl-avanzado" onclick="setRetoLevel('avanzado')">🔴 Avanzado</button>
+    </div>
     <div id="reto-ejercicios-list"></div>
     <button class="reto-complete-btn" id="reto-complete-btn" onclick="retoCompleteDay()" disabled>MARCAR DÍA COMPLETO</button>
   </div>
@@ -503,6 +515,24 @@ body.trainer-mode .client-only{display:none;}
           <option>Tríceps</option><option>Piernas</option><option>Glúteos</option><option>Core</option><option>Cardio</option><option>Full Body</option>
         </select>
       </div>
+      <div class="form-group"><label class="form-label">Nivel (para el Reto)</label>
+        <select class="form-input" id="lib-ex-level">
+          <option value="">— Sin nivel —</option>
+          <option value="principiante">🟢 Principiante</option>
+          <option value="intermedio">🟡 Intermedio</option>
+          <option value="avanzado">🔴 Avanzado</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Categoría</label>
+        <select class="form-input" id="lib-ex-category">
+          <option value="">— Sin categoría —</option>
+          <option value="fuerza">💪 Fuerza</option>
+          <option value="cardio">🔥 Cardio</option>
+          <option value="core">🎯 Core</option>
+          <option value="movilidad">🧘 Movilidad</option>
+          <option value="fullbody">⚡ Full Body</option>
+        </select>
+      </div>
     </div>
     <div class="modal-footer"><button class="btn btn-gold" onclick="saveLibraryExercise()">Guardar en biblioteca</button></div>
   </div>
@@ -564,6 +594,7 @@ const DAY_NAMES_JS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes'
 let clients=[], routines=[], progress=[], completions={}, messages=[], ratings=[];
 let exerciseLibrary=[], templates=[], templateRoutines=[];
 let isReto=false, retoClient=null, retoClients=[], retoRoutines=[], retoCompletions=[], retoMessages=[];
+let retoLevel = localStorage.getItem('cbc_reto_level') || 'principiante';
 let isTrainer=true, currentClientId=null, currentDay=null, currentWeek=getWeekNum(), exRowCount=0;
 let currentRating={routineId:null,clientId:null,stars:0};
 
@@ -1310,11 +1341,16 @@ async function copyWeek(){
 function renderLibrary(){
   const list=document.getElementById('library-list'); if(!list) return;
   if(!exerciseLibrary.length){list.innerHTML='<div class="empty-state"><div class="ei">📚</div><p>Biblioteca vacía.</p></div>';return;}
+  const lc={'principiante':'rgba(46,125,50,0.2)','intermedio':'rgba(245,127,23,0.2)','avanzado':'rgba(198,40,40,0.2)'};
+  const lt={'principiante':'#4CAF50','intermedio':'#FFA726','avanzado':'#EF5350'};
   list.innerHTML=exerciseLibrary.map(ex=>`
     <div class="ex-lib-item">
       <div style="flex:1;">
-        <div style="font-weight:700;font-size:13px;">${ex.name}</div>
-        <div style="font-size:11px;color:var(--gold2);">${ex.sets||''} ${ex.muscleGroup?'· '+ex.muscleGroup:''}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+          <div style="font-weight:700;font-size:13px;">${ex.name}</div>
+          ${ex.level?`<span style="font-size:9px;padding:2px 6px;border-radius:8px;background:${lc[ex.level]||'#222'};color:${lt[ex.level]||'var(--gray)'};font-weight:700;">${ex.level}</span>`:''}
+        </div>
+        <div style="font-size:11px;color:var(--gold2);">${ex.sets||''} ${ex.muscleGroup?'· '+ex.muscleGroup:''} ${ex.category?'· '+ex.category:''}</div>
         ${ex.notes?`<div style="font-size:11px;color:var(--gray2);">${ex.notes}</div>`:''}
       </div>
       <div style="display:flex;gap:6px;">
@@ -1327,7 +1363,7 @@ function renderLibrary(){
 async function saveLibraryExercise(){
   const name=document.getElementById('lib-ex-name').value.trim();
   if(!name){showToast('Ingresa el nombre');return;}
-  const ex={id:Date.now(),name,sets:document.getElementById('lib-ex-sets').value.trim(),video:document.getElementById('lib-ex-video').value.trim(),notes:document.getElementById('lib-ex-notes').value.trim(),muscleGroup:document.getElementById('lib-ex-muscle').value};
+  const ex={id:Date.now(),name,sets:document.getElementById('lib-ex-sets').value.trim(),video:document.getElementById('lib-ex-video').value.trim(),notes:document.getElementById('lib-ex-notes').value.trim(),muscleGroup:document.getElementById('lib-ex-muscle').value,level:document.getElementById('lib-ex-level')?.value||'',category:document.getElementById('lib-ex-category')?.value||''};
   if(!await dbInsert('training_exercises',ex)) return;
   exerciseLibrary.push(ex);
   closeModal('modal-add-exercise');
@@ -1860,6 +1896,7 @@ async function afterLoginReto() {
   const rn=document.getElementById('reto-nav'); if(rn) rn.style.display='flex';
   document.querySelector('.mode-badge').textContent='RETO 21';
   showPage('reto', document.querySelector('#reto-nav .nav-btn'));
+  updateLevelButtons();
   renderRetoClient();
   showToast('🔥 Bienvenido '+retoClient.name.split(' ')[0]);
 }
@@ -1880,6 +1917,27 @@ function getRetoStreak() {
   }
   return streak;
 }
+
+function setRetoLevel(level) {
+  retoLevel = level;
+  localStorage.setItem('cbc_reto_level', level);
+  // Update button styles
+  ['principiante','intermedio','avanzado'].forEach(l => {
+    const btn = document.getElementById('lvl-'+l);
+    if (btn) {
+      btn.className = 'reto-level-btn' + (l===level ? ' active-'+level : '');
+    }
+  });
+  renderRetoEjercicios();
+}
+
+function updateLevelButtons() {
+  ['principiante','intermedio','avanzado'].forEach(l => {
+    const btn = document.getElementById('lvl-'+l);
+    if (btn) btn.className = 'reto-level-btn' + (l===retoLevel ? ' active-'+retoLevel : '');
+  });
+}
+
 function renderRetoClient() {
   const day=getRetoDay(), streak=getRetoStreak();
   const pct=Math.round((retoCompletions.length/21)*100);
@@ -1898,6 +1956,12 @@ function renderRetoClient() {
   }
   const msg=retoMessages.find(m=>m.day_num===day);
   document.getElementById('reto-msg-container').innerHTML=msg?`<div class="reto-msg-card"><div class="reto-msg-text">"${msg.message}"</div><div style="font-size:10px;color:var(--gray);margin-top:6px;">— Mensaje del día ${day}</div></div>`:'';
+  updateLevelButtons();
+  renderRetoEjercicios();
+}
+
+function renderRetoEjercicios() {
+  const day=getRetoDay();
   const routine=retoRoutines.find(r=>r.day_num===day);
   const exList=document.getElementById('reto-ejercicios-list');
   const todayStr=new Date().toISOString().split('T')[0];
@@ -1906,10 +1970,33 @@ function renderRetoClient() {
     exList.innerHTML='<div style="text-align:center;color:var(--gray);padding:30px;font-size:13px;">⏳ Rutina del día '+day+' próximamente</div>';
     document.getElementById('reto-complete-btn').disabled=true; return;
   }
-  let exs=[];
-  try{ exs=Array.isArray(routine.exercises)?routine.exercises:JSON.parse(routine.exercises||'[]'); }catch(e){}
-  exList.innerHTML=`<div style="background:rgba(201,149,42,0.1);border:1px solid rgba(201,149,42,0.2);border-radius:10px;padding:10px 14px;margin-bottom:10px;"><div style="font-size:11px;color:var(--gray2);letter-spacing:1px;">${routine.focus||'ENTRENAMIENTO'}</div>${routine.description?'<div style="font-size:12px;color:var(--gray);margin-top:2px;">'+routine.description+'</div>':''}</div>`+
-    exs.map((ex,i)=>`<div class="reto-ex-card ${alreadyDone?'done':''}" id="rex-${i}"><div class="reto-ex-header"><div class="reto-ex-check ${alreadyDone?'done':''}" onclick="toggleRetoEx(${i})" id="rck-${i}">${alreadyDone?'✓':''}</div><div style="flex:1"><div class="reto-ex-name">${ex.name||ex}</div><div class="reto-ex-sets" style="font-size:11px;color:var(--gray2)">${ex.sets||''} ${ex.notes||''}</div></div>${ex.video?`<a href="${ex.video}" target="_blank" style="font-size:20px;text-decoration:none">▶️</a>`:''}</div></div>`).join('');
+  // Parse exercises - Supabase returns JSONB as native array, no need to JSON.parse
+  let allEx=[];
+  try{
+    if(Array.isArray(routine.exercises)) allEx=routine.exercises;
+    else if(typeof routine.exercises==='string') allEx=JSON.parse(routine.exercises);
+    else allEx=[];
+  }catch(e){ allEx=[]; }
+  // Filter by level - ALWAYS filter, never show all
+  const hasLevels = allEx.some(ex=>ex.level);
+  let exs = hasLevels ? allEx.filter(ex=>ex.level===retoLevel) : allEx;
+  const levelColors={'principiante':'#2E7D32','intermedio':'#F57F17','avanzado':'#C62828'};
+  const levelLabels={'principiante':'🟢 PRINCIPIANTE','intermedio':'🟡 INTERMEDIO','avanzado':'🔴 AVANZADO'};
+  exList.innerHTML=`<div style="background:rgba(201,149,42,0.1);border:1px solid rgba(201,149,42,0.2);border-radius:10px;padding:10px 14px;margin-bottom:10px;">
+    <div style="font-size:11px;color:var(--gray2);letter-spacing:1px;">${routine.focus||'ENTRENAMIENTO'}</div>
+    ${routine.description?'<div style="font-size:12px;color:var(--gray);margin-top:2px;">'+routine.description+'</div>':''}
+    <div style="margin-top:6px;font-size:11px;font-weight:700;color:${levelColors[retoLevel]}">${levelLabels[retoLevel]}</div>
+  </div>`+
+    exs.map((ex,i)=>`<div class="reto-ex-card ${alreadyDone?'done':''}" id="rex-${i}">
+      <div class="reto-ex-header">
+        <div class="reto-ex-check ${alreadyDone?'done':''}" onclick="toggleRetoEx(${i})" id="rck-${i}">${alreadyDone?'✓':''}</div>
+        <div style="flex:1">
+          <div class="reto-ex-name">${ex.name||ex}</div>
+          <div class="reto-ex-sets" style="font-size:11px;color:var(--gray2)">${ex.sets||''} ${ex.notes||''}</div>
+        </div>
+        ${ex.video?`<a href="${ex.video}" target="_blank" style="font-size:20px;text-decoration:none;padding:4px;">▶️</a>`:''}
+      </div>
+    </div>`).join('');
   const btn=document.getElementById('reto-complete-btn');
   if(alreadyDone){btn.textContent='✅ DÍA COMPLETADO';btn.disabled=true;btn.style.background='var(--success)';}
   else{btn.textContent='MARCAR DÍA COMPLETO';btn.disabled=false;btn.style.background='';window._rexDone={};}
@@ -2062,32 +2149,72 @@ async function deleteRetoClient(id){
   const r=await fetch(SB_URL+'/reto_clients?id=eq.'+id+'&apikey='+SB_KEY,{method:'DELETE',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});
   if(r.ok){retoClients=retoClients.filter(x=>x.id!==id);renderRetoParticipants();showToast('✓ Eliminado');}
 }
+let _retoEditLevel='principiante';
 function openRetoRoutineEdit(day){
+  _retoEditLevel='principiante';
   const r=retoRoutines.find(x=>x.day_num===day);
   document.getElementById('reto-routine-edit-day').value=day;
   document.getElementById('reto-routine-day-title').textContent=day;
   document.getElementById('reto-routine-focus').value=r?r.focus||'':'';
   document.getElementById('reto-routine-desc').value=r?r.description||'':'';
-  let exs=[]; try{exs=r?(Array.isArray(r.exercises)?r.exercises:JSON.parse(r.exercises||'[]')):[]}catch(e){}
-  const c=document.getElementById('reto-routine-exs'); c.innerHTML='';
-  exs.forEach(ex=>addRetoExRow(ex));
-  if(!exs.length)addRetoExRow();
+  switchRetoEditLevel('principiante', r);
   openModal('modal-reto-routine');
+}
+function switchRetoEditLevel(level, routineOverride) {
+  _retoEditLevel=level;
+  ['principiante','intermedio','avanzado'].forEach(l=>{
+    const btn=document.getElementById('retoedit-lvl-'+l);
+    if(btn) btn.className='reto-tab-btn'+(l===level?' active':'');
+  });
+  const r = routineOverride !== undefined ? routineOverride : retoRoutines.find(x=>x.day_num===parseInt(document.getElementById('reto-routine-edit-day').value));
+  let allExs=[]; try{allExs=r?(Array.isArray(r.exercises)?r.exercises:JSON.parse(r.exercises||'[]')):[]}catch(e){}
+  const levelExs = allExs.filter(ex=>ex.level===level);
+  const c=document.getElementById('reto-routine-exs'); c.innerHTML='';
+  levelExs.forEach(ex=>addRetoExRow(ex));
+  if(!levelExs.length) addRetoExRow();
 }
 function addRetoExRow(ex={}){
   const c=document.getElementById('reto-routine-exs');
   const d=document.createElement('div');
-  d.style.cssText='display:flex;gap:6px;margin-bottom:6px;align-items:center';
-  d.innerHTML=`<input class="form-input reto-ex-name-inp" style="flex:2" placeholder="Ejercicio" value="${ex.name||ex||''}"><input class="form-input reto-ex-sets-inp" style="flex:1" placeholder="Series" value="${ex.sets||''}"><input class="form-input reto-ex-video-inp" style="flex:1" placeholder="Video URL" value="${ex.video||''}"><button onclick="this.parentElement.remove()" style="background:#2a0a0a;border:1px solid #5a1a1a;color:var(--danger);padding:8px;border-radius:6px;cursor:pointer">✕</button>`;
+  d.style.cssText='display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap;';
+  d.innerHTML=`<input class="form-input reto-ex-name-inp" style="flex:2;min-width:120px" placeholder="Ejercicio" value="${ex.name||ex||''}"><input class="form-input reto-ex-sets-inp" style="flex:1;min-width:80px" placeholder="Series" value="${ex.sets||''}"><input class="form-input reto-ex-video-inp" style="flex:1;min-width:80px" placeholder="Video URL" value="${ex.video||''}"><button onclick="this.parentElement.remove()" style="background:#2a0a0a;border:1px solid #5a1a1a;color:var(--danger);padding:8px;border-radius:6px;cursor:pointer">✕</button>`;
   c.appendChild(d);
+}
+function openRetoBiblioteca(){
+  const picker=document.getElementById('reto-library-picker');
+  picker.style.display=picker.style.display==='none'?'block':'none';
+  filterRetoBiblioteca();
+}
+function filterRetoBiblioteca(){
+  const q=document.getElementById('reto-lib-search').value.toLowerCase();
+  const list=document.getElementById('reto-lib-list');
+  const filtered=exerciseLibrary.filter(e=>!q||e.name.toLowerCase().includes(q));
+  if(!filtered.length){list.innerHTML='<div style="color:var(--gray);font-size:12px;padding:8px;">Sin resultados</div>';return;}
+  list.innerHTML=filtered.map(e=>
+    `<div onclick="retoSelectLibEx(${JSON.stringify(e.name)},${JSON.stringify(e.sets||'')},${JSON.stringify(e.video||'')},${JSON.stringify(e.notes||'')})"
+      style="padding:10px;border-radius:6px;cursor:pointer;font-size:13px;border-bottom:1px solid #2a2a2a;display:flex;align-items:center;gap:8px;">
+      ${e.level?`<span style="font-size:10px;padding:2px 6px;border-radius:10px;background:${e.level==='principiante'?'rgba(46,125,50,0.2)':e.level==='intermedio'?'rgba(245,127,23,0.2)':'rgba(198,40,40,0.2)'};color:${e.level==='principiante'?'#4CAF50':e.level==='intermedio'?'#FFA726':'#EF5350'}">${e.level}</span>`:''}
+      <div style="flex:1"><span style="font-weight:600;">${e.name}</span> <span style="color:var(--gray2);font-size:11px;">${e.sets||''}</span></div>
+    </div>`
+  ).join('');
+}
+function retoSelectLibEx(name,sets,video,notes){
+  addRetoExRow({name,sets,video,notes});
+  document.getElementById('reto-library-picker').style.display='none';
+  document.getElementById('reto-lib-search').value='';
 }
 async function saveRetoRoutine(){
   const day=parseInt(document.getElementById('reto-routine-edit-day').value);
   const focus=document.getElementById('reto-routine-focus').value.trim();
   const desc=document.getElementById('reto-routine-desc').value.trim();
   const rows=document.getElementById('reto-routine-exs').querySelectorAll('div');
-  const exs=[]; rows.forEach(r=>{const n=r.querySelector('.reto-ex-name-inp')?.value.trim();if(n)exs.push({name:n,sets:r.querySelector('.reto-ex-sets-inp')?.value.trim()||'',video:r.querySelector('.reto-ex-video-inp')?.value.trim()||''});});
+  // Get existing exercises for other levels and replace current level
   const existing=retoRoutines.find(x=>x.day_num===day);
+  let allExs=[]; try{allExs=existing?(Array.isArray(existing.exercises)?existing.exercises:JSON.parse(existing.exercises||'[]')):[]}catch(e){}
+  const otherLevelExs=allExs.filter(ex=>ex.level!==_retoEditLevel);
+  const newLevelExs=[]; 
+  rows.forEach(r=>{const n=r.querySelector('.reto-ex-name-inp')?.value.trim();if(n)newLevelExs.push({name:n,sets:r.querySelector('.reto-ex-sets-inp')?.value.trim()||'',video:r.querySelector('.reto-ex-video-inp')?.value.trim()||'',level:_retoEditLevel});});
+  const exs=[...otherLevelExs,...newLevelExs];
   const payload={day_num:day,focus,description:desc,exercises:JSON.stringify(exs)};
   let ok;
   if(existing){
@@ -2182,17 +2309,32 @@ async function saveRetoMsg(){
   </div>
 </div>
 <div class="modal-overlay" id="modal-reto-routine">
-  <div class="modal-box" style="max-height:85vh;overflow-y:auto;">
+  <div class="modal-box" style="max-height:90vh;overflow-y:auto;">
     <div class="modal-title">DÍA <span id="reto-routine-day-title"></span> — RUTINA</div>
     <input type="hidden" id="reto-routine-edit-day">
-    <div class="form-group"><label class="form-label">ENFOQUE</label><input class="form-input" id="reto-routine-focus" placeholder="ej: Piernas y glúteos"></div>
+    <div class="form-group"><label class="form-label">ENFOQUE DEL DÍA</label><input class="form-input" id="reto-routine-focus" placeholder="ej: Piernas y glúteos"></div>
     <div class="form-group"><label class="form-label">DESCRIPCIÓN (opcional)</label><input class="form-input" id="reto-routine-desc" placeholder="ej: Circuito de 3 rondas"></div>
+    <!-- Level tabs -->
+    <div style="margin-bottom:10px;"><label class="form-label">NIVEL</label></div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+      <button class="reto-tab-btn active" id="retoedit-lvl-principiante" onclick="switchRetoEditLevel('principiante')">🟢 Principiante</button>
+      <button class="reto-tab-btn" id="retoedit-lvl-intermedio" onclick="switchRetoEditLevel('intermedio')">🟡 Intermedio</button>
+      <button class="reto-tab-btn" id="retoedit-lvl-avanzado" onclick="switchRetoEditLevel('avanzado')">🔴 Avanzado</button>
+    </div>
     <div style="margin-bottom:8px;"><label class="form-label">EJERCICIOS</label></div>
     <div id="reto-routine-exs"></div>
-    <button onclick="addRetoExRow()" style="width:100%;padding:10px;border-radius:8px;background:#222;border:1px solid #333;color:var(--gold);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:12px;">+ EJERCICIO</button>
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+      <button onclick="addRetoExRow()" style="flex:1;padding:10px;border-radius:8px;background:#222;border:1px solid #333;color:var(--gold);font-size:12px;font-weight:600;cursor:pointer;">+ Manual</button>
+      <button onclick="openRetoBiblioteca()" style="flex:1;padding:10px;border-radius:8px;background:#222;border:1px solid var(--gold);color:var(--gold);font-size:12px;font-weight:600;cursor:pointer;">📚 Biblioteca</button>
+    </div>
+    <!-- Library picker -->
+    <div id="reto-library-picker" style="display:none;background:#1a1a1a;border-radius:8px;padding:10px;margin-bottom:10px;max-height:200px;overflow-y:auto;">
+      <input class="form-input" id="reto-lib-search" oninput="filterRetoBiblioteca()" placeholder="Buscar ejercicio..." style="margin-bottom:8px;">
+      <div id="reto-lib-list"></div>
+    </div>
     <div style="display:flex;gap:8px;">
       <button onclick="closeModal('modal-reto-routine')" style="flex:1;padding:12px;border-radius:8px;background:#222;color:var(--white);border:1px solid #333;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:600;">CANCELAR</button>
-      <button onclick="saveRetoRoutine()" style="flex:2;padding:12px;border-radius:8px;background:linear-gradient(135deg,#c9952a,#8a6009);color:#000;border:none;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;">GUARDAR</button>
+      <button onclick="saveRetoRoutine()" style="flex:2;padding:12px;border-radius:8px;background:linear-gradient(135deg,#c9952a,#8a6009);color:#000;border:none;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;">GUARDAR NIVEL</button>
     </div>
   </div>
 </div>
