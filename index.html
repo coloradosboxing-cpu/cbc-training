@@ -569,33 +569,24 @@ async function doLogin() {
     return;
   }
 
-  // ── CLIENT ── use preloaded, or cache, or SDK
-  let allClients = clients.length ? clients : [];
-
-  if (!allClients.length) {
-    const cached = localStorage.getItem('cbc_cached_clients');
-    if (cached) { try { allClients = JSON.parse(cached); } catch(e){} }
+  // ── CLIENT ── always fetch fresh from Supabase
+  showToast('⏳ Verificando PIN...');
+  let allClients = [];
+  try {
+    const url = SB_URL + '/training_clients?select=id,name,pin,goal,phone,photo&apikey=' + SB_KEY;
+    const res = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) allClients = data;
+    }
+  } catch(e) {
+    showToast('⚠️ Sin conexión. Verifica tu internet.');
+    btn.textContent='ENTRAR'; btn.disabled=false;
+    return;
   }
 
   if (!allClients.length) {
-    try {
-      const data = await xhrGet(SB_URL+'/training_clients?select=id,name,pin,goal,phone,photo');
-      console.log('[LOGIN] fetch result:', data);
-      if (data === null) {
-        // Network error
-        showToast('⚠️ Sin conexión. Verifica tu internet.');
-        btn.textContent='ENTRAR'; btn.disabled=false;
-        return;
-      }
-      if (data && data.length) {
-        allClients = data;
-        localStorage.setItem('cbc_cached_clients', JSON.stringify(data));
-      }
-    } catch(e) { console.error('XHR fetch error:',e); }
-  }
-
-  if (!allClients.length) {
-    showToast('⚠️ No se pudieron cargar los clientes. Intenta de nuevo.');
+    showToast('⚠️ No se pudieron cargar los clientes.');
     btn.textContent='ENTRAR'; btn.disabled=false;
     return;
   }
