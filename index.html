@@ -33,6 +33,7 @@ body{font-family:'Montserrat',sans-serif;background:var(--black);color:var(--whi
 .nav-btn.active{color:var(--gold);}
 .main{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
 .page{display:none;padding:16px;min-height:100%;}
+.page.active{display:block!important;}
 .page.active{display:block;}
 .section-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;color:var(--gold);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
 .section-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(201,149,42,0.4),transparent);}
@@ -338,6 +339,11 @@ body.trainer-mode .client-only{display:none;}
     <div id="reto-ejercicios-list"></div>
     <button class="reto-complete-btn" id="reto-complete-btn" onclick="retoCompleteDay()" disabled>MARCAR DÍA COMPLETO</button>
   </div>
+  <div style="margin-top:16px;margin-bottom:8px;">
+    <button onclick="contactTrainer()" style="width:100%;padding:14px;border-radius:12px;background:#0d2e0d;border:1px solid #25D366;color:#25D366;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+      <span style="font-size:20px;">📲</span> CONTACTAR AL ENTRENADOR
+    </button>
+  </div>
 </div>
 
 <div class="page" id="page-reto-ranking">
@@ -541,6 +547,7 @@ body.trainer-mode .client-only{display:none;}
 
 <script>
 const TRAINER_PIN = '1234';
+const TRAINER_WHATSAPP = '523319144359'; // Trainer's WhatsApp number
 const SB_URL = 'https://btdtpruxntodjuzomdcq.supabase.co/rest/v1';
 const SB_KEY = 'sb_publishable_NA4niv3lN1R5OUkwJH8ihA_d547f1h4';
 let sb = null;
@@ -1631,6 +1638,30 @@ document.getElementById('login-screen').style.display='flex';
   }
 })();
 
+
+function sendRetoWhatsApp(clientId) {
+  const c = retoClients.find(x=>x.id===clientId);
+  if (!c) return;
+  const phone = c.phone ? c.phone.replace(/[^0-9]/g,'') : '';
+  if (!phone) { showToast('Este participante no tiene teléfono registrado'); return; }
+  const msg = encodeURIComponent(
+    '🔥 *RETO 21 DÍAS SIN EXCUSAS*\n\n' +
+    'Hola ' + c.name.split(' ')[0] + '! 👊\n\n' +
+    'Tu acceso a la app de entrenamiento:\n' +
+    '🔑 PIN: *' + c.pin + '*\n' +
+    '🌐 App: https://coloradosboxing-cpu.github.io/cbc-training/\n\n' +
+    '¡Nos vemos en el reto! 💪'
+  );
+  window.open('https://wa.me/' + phone + '?text=' + msg, '_blank');
+}
+
+function contactTrainer() {
+  const msg = encodeURIComponent(
+    '¡Hola! Soy participante del Reto 21 Días de Colorado\'s Boxing Club 🥊'
+  );
+  window.open('https://wa.me/' + TRAINER_WHATSAPP + '?text=' + msg, '_blank');
+}
+
 // ══════════════════════════════════════
 // RETO 21 DÍAS
 // ══════════════════════════════════════
@@ -1683,8 +1714,9 @@ function renderRetoClient() {
   document.getElementById('reto-prog-text').textContent=retoCompletions.length+' de 21 días completados';
   document.getElementById('reto-streak').innerHTML='🔥 '+streak+' día'+(streak!==1?'s':'')+' seguido'+(streak!==1?'s':'');
   const earned=[retoCompletions.length>=7,retoCompletions.length>=14,retoCompletions.length>=21];
+  const badgeLabels=['Sem 1','Sem 2','Sem 3'];
   document.getElementById('reto-badges').innerHTML=['🥊','💪','🏆'].map((e,i)=>
-    `<div class="reto-badge ${earned[i]?'earned':'locked'}">${e}</div>`).join('');
+    `<div class="reto-badge ${earned[i]?'earned':'locked'}" title="${badgeLabels[i]}">${e}<div style="font-size:8px;margin-top:2px;color:${earned[i]?'var(--gold)':'var(--gray)'}">${badgeLabels[i]}</div></div>`).join('');
   const grid=document.getElementById('reto-day-grid'); grid.innerHTML='';
   for(let i=1;i<=21;i++){
     const done=retoCompletions.find(c=>c.day_num===i);
@@ -1737,7 +1769,7 @@ async function renderRetoRanking(){
   list.innerHTML='<div style="text-align:center;padding:20px;color:var(--gray);">Cargando...</div>';
   try{
     const [cr,compr]=await Promise.all([
-      fetch(SB_URL+'/reto_clients?select=id,pin,start_date&apikey='+SB_KEY),
+      fetch(SB_URL+'/reto_clients?select=id,name,pin,start_date&apikey='+SB_KEY),
       fetch(SB_URL+'/reto_completions?select=reto_client_id,day_num,date&apikey='+SB_KEY)
     ]);
     const ac=cr.ok?await cr.json():[], ac2=compr.ok?await compr.json():[];
@@ -1753,7 +1785,7 @@ async function renderRetoRanking(){
     list.innerHTML=ranked.map((p,i)=>{
       const isMe=retoClient&&p.id===retoClient.id;
       const pc=i===0?'gold':i===1?'silver':i===2?'bronze':'';
-      return `<div class="ranking-card ${isMe?'ranking-me':''}"><div class="ranking-pos ${pc}">${medals[i]||i+1}</div><div style="flex:1"><div style="font-weight:700;font-size:14px;">${p.pin}${isMe?' <span style="color:var(--gold);font-size:10px;">← Tú</span>':''}</div><div style="font-size:11px;color:var(--gray2)">${p.days} días completados</div></div><div style="font-size:13px">🔥${p.streak}</div></div>`;
+      return `<div class="ranking-card ${isMe?'ranking-me':''}"><div class="ranking-pos ${pc}">${medals[i]||i+1}</div><div style="flex:1"><div style="font-weight:700;font-size:14px;">${p.name}${isMe?' <span style="color:var(--gold);font-size:10px;">← Tú</span>':''}</div><div style="font-size:11px;color:var(--gray2)">${p.days} días completados · 🔥${p.streak} racha</div></div></div>`;
     }).join('')||'<div style="text-align:center;padding:30px;color:var(--gray)">Aún no hay participantes</div>';
   }catch(e){list.innerHTML='<div style="color:var(--danger);text-align:center;padding:20px;">Error al cargar</div>';}
 }
@@ -1794,7 +1826,7 @@ function renderRetoParticipants(){
     const doneToday=mc.find(x=>x.date===today);
     const s=c.start_date?new Date(c.start_date):null;
     const dn=s?Math.max(1,Math.min(21,Math.floor((new Date()-s)/86400000)+1)):'?';
-    return `<div class="reto-participant-card"><div class="reto-p-header"><div class="reto-p-avatar">${c.name[0]}</div><div style="flex:1"><div style="font-weight:700;font-size:14px;">${c.name}</div><div style="font-size:11px;color:var(--gray2)">PIN: ${c.pin}${c.phone?' · '+c.phone:''}</div></div><button onclick="editRetoClient(${c.id})" style="background:#222;border:1px solid #333;color:var(--gold);padding:6px 10px;border-radius:6px;font-size:12px;cursor:pointer;margin-right:4px;">✏️</button><button onclick="deleteRetoClient(${c.id})" style="background:#2a0a0a;border:1px solid #5a1a1a;color:var(--danger);padding:6px 10px;border-radius:6px;font-size:12px;cursor:pointer;">🗑</button></div><div class="reto-p-stats"><div class="reto-p-stat"><div class="reto-p-stat-val">${dn}</div><div class="reto-p-stat-label">DÍA</div></div><div class="reto-p-stat"><div class="reto-p-stat-val">${mc.length}</div><div class="reto-p-stat-label">HECHOS</div></div><div class="reto-p-stat"><div class="reto-p-stat-val" style="color:${doneToday?'var(--success)':'var(--danger)'}">${doneToday?'✓':'✗'}</div><div class="reto-p-stat-label">HOY</div></div></div></div>`;
+    return `<div class="reto-participant-card"><div class="reto-p-header"><div class="reto-p-avatar">${c.name[0]}</div><div style="flex:1"><div style="font-weight:700;font-size:14px;">${c.name}</div><div style="font-size:11px;color:var(--gray2)">PIN: ${c.pin}${c.phone?' · '+c.phone:''}</div></div><button onclick="sendRetoWhatsApp(${c.id})" style="background:#0d2e0d;border:1px solid #1a5e1a;color:#25D366;padding:6px 10px;border-radius:6px;font-size:12px;cursor:pointer;margin-right:4px;">📲</button><button onclick="editRetoClient(${c.id})" style="background:#222;border:1px solid #333;color:var(--gold);padding:6px 10px;border-radius:6px;font-size:12px;cursor:pointer;margin-right:4px;">✏️</button><button onclick="deleteRetoClient(${c.id})" style="background:#2a0a0a;border:1px solid #5a1a1a;color:var(--danger);padding:6px 10px;border-radius:6px;font-size:12px;cursor:pointer;">🗑</button></div><div class="reto-p-stats"><div class="reto-p-stat"><div class="reto-p-stat-val">${dn}</div><div class="reto-p-stat-label">DÍA</div></div><div class="reto-p-stat"><div class="reto-p-stat-val">${mc.length}</div><div class="reto-p-stat-label">HECHOS</div></div><div class="reto-p-stat"><div class="reto-p-stat-val" style="color:${doneToday?'var(--success)':'var(--danger)'}">${doneToday?'✓':'✗'}</div><div class="reto-p-stat-label">HOY</div></div></div></div>`;
   }).join('');
 }
 function renderRetoRoutinesList(){
