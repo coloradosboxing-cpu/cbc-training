@@ -653,7 +653,10 @@ async function loadAllData() {
   completions={};
   compr.forEach(row=>{
     const key=`${row.clientId}_${row.routineId}_${row.date}`;
-    completions[key]=row.exercises||[];
+    let exs = row.exercises||[];
+    if (typeof exs === 'string') { try { exs=JSON.parse(exs); } catch(e){ exs=[]; } }
+    if (!Array.isArray(exs)) exs=[];
+    completions[key]=exs;
   });
 }
 
@@ -816,8 +819,11 @@ function switchGestionTab(tab) {
 // ─── CLIENTS ───
 function renderClients() {
   const list = document.getElementById('clients-list');
-  if(!clients.length){list.innerHTML='<div class="empty-state"><div class="ei">🥊</div><p>No hay clientes aún.</p></div>';return;}
-  list.innerHTML = clients.map(c=>{
+  if (!list) return;
+  // Non-trainer: only show own card
+  const displayClients = isTrainer ? clients : clients.filter(c=>String(c.id)===localStorage.getItem('cbc_client_id'));
+  if(!displayClients.length){list.innerHTML='<div class="empty-state"><div class="ei">🥊</div><p>No hay clientes aún.</p></div>';return;}
+  list.innerHTML = displayClients.map(c=>{
     const myR = routines.filter(r=>String(r.clientId)===String(c.id));
     const weeks = [...new Set(myR.map(r=>r.week||0))];
     const initials = c.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -951,7 +957,7 @@ function renderWorkout(client,myRoutines,week) {
   const total=activeRoutine?activeRoutine.exercises.length:0;
   const pct=total>0?Math.round((done.length/total)*100):0;
 
-  const allWeeks=[...new Set(myRoutines.map(r=>r.week||0))].sort((a,b)=>a-b);
+  const allWeeks=[...new Set(myRoutines.map(r=>r.week||0))].filter(w=>w>0).sort((a,b)=>a-b);
   const curW=getWeekNum();
   const weekTabs=allWeeks.map(w=>`<div class="week-tab ${w===week?'active':''} ${w===curW?'current':''}" onclick="switchWeek(${w},${client.id})">Sem ${w}${w===curW?' ★':''}</div>`).join('');
   const dayTabs=weekRoutines.map(r=>`<div class="day-tab ${r.day===currentDay?'active':''}" onclick="switchDay('${r.day}',${client.id},${week})">${r.day}</div>`).join('');
