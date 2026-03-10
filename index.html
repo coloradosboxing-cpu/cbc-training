@@ -576,6 +576,7 @@ async function doLogin() {
     try {
       btn.textContent = 'INTENTO ' + attempt + '/3...';
       const url = SB_URL + '/training_clients?select=id,name,pin,goal,phone&apikey=' + SB_KEY;
+      if (attempt === 1) { err.textContent = url.substring(0,80); err.style.display='block'; }
       const res = await fetch(url);
       lastError = 'HTTP ' + res.status;
       if (res.ok) {
