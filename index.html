@@ -3118,6 +3118,21 @@ async function sendPushRemindersUI() {
     showToast('Error al cargar participantes');
   }
 }
+
+// ─── SUPABASE KEEP-ALIVE PING ───
+// Pings Supabase every 4 days to prevent project from pausing (free tier pauses after 7 days inactivity)
+function startSupabasePing() {
+  async function ping() {
+    try {
+      await fetch(SB_URL + '/reto_clients?select=id&limit=1&apikey=' + SB_KEY, {
+        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+      });
+    } catch(e) {}
+  }
+  ping(); // ping on load
+  setInterval(ping, 4 * 24 * 60 * 60 * 1000); // every 4 days
+}
+startSupabasePing();
 </script>
 
 </body>
