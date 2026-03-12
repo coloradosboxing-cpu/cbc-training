@@ -2105,11 +2105,11 @@ function openAvatarPicker(){
 }
 // ─── SUPABASE STORAGE UPLOAD ───
 async function uploadToStorage(file, folder){
-  // Resize image before upload to save space
   const resized = await resizeImage(file, 800);
-  const ext = file.name.split('.').pop() || 'jpg';
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const filename = `${folder}/${Date.now()}.${ext}`;
-  const res = await fetch(`${SB_URL}/storage/v1/object/reto-fotos/${filename}`, {
+  const SB_BASE = 'https://btdtpruxntodjuzomdcq.supabase.co';
+  const res = await fetch(`${SB_BASE}/storage/v1/object/reto-fotos/${filename}`, {
     method: 'POST',
     headers: {
       'apikey': SB_KEY,
@@ -2119,8 +2119,12 @@ async function uploadToStorage(file, folder){
     },
     body: resized
   });
-  if(!res.ok) throw new Error('Upload failed: ' + res.status);
-  return `${SB_URL}/storage/v1/object/public/reto-fotos/${filename}`;
+  if(!res.ok){
+    const err = await res.text();
+    console.error('Storage error:', res.status, err);
+    throw new Error('Upload failed: ' + res.status);
+  }
+  return `${SB_BASE}/storage/v1/object/public/reto-fotos/${filename}`;
 }
 
 async function resizeImage(file, maxWidth){
