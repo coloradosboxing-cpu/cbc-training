@@ -928,7 +928,8 @@ function showPage(page, btn) {
   if(btn) btn.classList.add('active');
   if (page==='reto-admin') setTimeout(renderRetoAdmin, 50);
   if (page==='reto-ranking') setTimeout(renderRetoRanking, 50);
-  if (page==='reto-chat') setTimeout(loadRetoChat, 50);
+  if (page==='reto-chat') { setTimeout(loadRetoChat, 50); startChatRefresh('client'); }
+  else { stopChatRefresh(); }
   document.getElementById('main-scroll').scrollTop=0;
   if(page==='ajustes'){renderSavedRoutines();renderMessagesList();renderLibrary();renderTemplates();}
   if(page==='progreso'){
@@ -2606,6 +2607,26 @@ function renderChatFeed(posts, cls, reacciones, comentarios, currentClient, isTr
   }).join('');
 }
 
+// ─── CHAT AUTO-REFRESH ───
+let chatRefreshInterval = null;
+
+function startChatRefresh(mode) {
+  stopChatRefresh();
+  chatRefreshInterval = setInterval(() => {
+    if (mode === 'admin') {
+      const feed = document.getElementById('reto-chat-feed-admin');
+      if (feed && feed.closest('.reto-page, .page')?.style.display !== 'none') loadRetoChatAdmin();
+    } else {
+      const feed = document.getElementById('reto-chat-feed');
+      if (feed && document.getElementById('page-reto-chat')?.style.display !== 'none') loadRetoChat();
+    }
+  }, 5000);
+}
+
+function stopChatRefresh() {
+  if (chatRefreshInterval) { clearInterval(chatRefreshInterval); chatRefreshInterval = null; }
+}
+
 async function loadRetoChat(){
   const feed=document.getElementById('reto-chat-feed');
   if(!feed) return;
@@ -2688,7 +2709,8 @@ function retoAdminTab(tab){
   if(tab==='mensaje') renderRetoMessagesList();
   if(tab==='participantes') renderRetoParticipants();
   if(tab==='vista') renderRetoVistaGrid();
-  if(tab==='chat') loadRetoChatAdmin();
+  if(tab==='chat') { loadRetoChatAdmin(); startChatRefresh('admin'); }
+  else { stopChatRefresh(); }
 }
 
 
