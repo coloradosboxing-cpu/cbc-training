@@ -394,8 +394,35 @@ body.trainer-mode .client-only{display:none;}
 
 <div class="page" id="page-reto-ranking">
   <div class="section-title">🏆 Ranking</div>
-
   <div id="reto-ranking-list"></div>
+</div>
+
+<!-- RETO CHAT PAGE -->
+<div class="page" id="page-reto-chat">
+  <div class="section-title">💬 Chat del Reto</div>
+  <div style="font-size:12px;color:var(--gray2);margin-bottom:14px;">Comparte tu progreso, fotos y motiva al grupo 🔥</div>
+
+  <!-- Post form -->
+  <div style="background:var(--dark2);border:1px solid #333;border-radius:14px;padding:14px;margin-bottom:16px;">
+    <textarea id="chat-mensaje" placeholder="Escribe algo al grupo..." style="width:100%;background:#1a1a1a;border:1px solid #333;border-radius:8px;color:var(--white);padding:10px;font-size:13px;font-family:'Montserrat',sans-serif;resize:none;min-height:70px;margin-bottom:8px;"></textarea>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+      <input type="text" id="chat-video-link" placeholder="🎥 Link de TikTok/Instagram (opcional)" style="flex:1;background:#1a1a1a;border:1px solid #333;border-radius:8px;color:var(--white);padding:8px 10px;font-size:12px;">
+    </div>
+    <div style="display:flex;gap:8px;">
+      <label style="flex:1;padding:10px;border-radius:8px;background:#1a1a1a;border:1px solid #333;color:var(--gray2);font-size:12px;text-align:center;cursor:pointer;">
+        📷 Subir foto
+        <input type="file" accept="image/*" id="chat-foto-input" style="display:none" onchange="previewChatFoto(event)">
+      </label>
+      <button onclick="postRetoChat()" style="flex:1;padding:10px;border-radius:8px;background:linear-gradient(135deg,#c9952a,#8a6009);color:#000;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1px;border:none;cursor:pointer;">PUBLICAR 🔥</button>
+    </div>
+    <div id="chat-foto-preview" style="margin-top:8px;display:none;">
+      <img id="chat-foto-img" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;" src="">
+      <button onclick="clearChatFoto()" style="margin-top:4px;background:none;border:none;color:var(--danger);font-size:12px;cursor:pointer;">✕ Quitar foto</button>
+    </div>
+  </div>
+
+  <!-- Feed -->
+  <div id="reto-chat-feed"></div>
 </div>
 
 <div class="page" id="page-reto-admin">
@@ -430,14 +457,15 @@ body.trainer-mode .client-only{display:none;}
 <div class="bottom-nav" id="reto-nav" style="display:none;">
   <button class="nav-btn active" onclick="showPage('reto',this)"><span class="nav-icon">🔥</span><span class="nav-label">Mi Reto</span></button>
   <button class="nav-btn" onclick="showPage('reto-ranking',this)"><span class="nav-icon">🏆</span><span class="nav-label">Ranking</span></button>
+  <button class="nav-btn" onclick="showPage('reto-chat',this);loadRetoChat()"><span class="nav-icon">💬</span><span class="nav-label">Chat</span></button>
 </div>
 
 <!-- RATING POPUP -->
 <div class="rating-popup" id="rating-popup">
   <div class="rating-box">
     <div style="font-size:48px;margin-bottom:8px;">🏆</div>
-    <div class="rating-title">¡RUTINA COMPLETADA!</div>
-    <div style="font-size:12px;color:var(--gray2);margin-bottom:20px;">¿Cómo estuvo el entrenamiento?</div>
+    <div class="rating-title" id="rating-popup-title">¡RUTINA COMPLETADA!</div>
+    <div class="rating-subtitle" style="font-size:12px;color:var(--gray2);margin-bottom:20px;">¿Cómo estuvo el entrenamiento?</div>
     <div class="stars" id="stars-row">
       <span class="star" onclick="selectStar(1)">⭐</span>
       <span class="star" onclick="selectStar(2)">⭐</span>
@@ -447,8 +475,8 @@ body.trainer-mode .client-only{display:none;}
     </div>
     <textarea class="form-input" id="rating-comment" placeholder="Comentario opcional..." style="margin-bottom:16px;min-height:70px;"></textarea>
     <div style="display:flex;gap:8px;">
-      <button class="btn btn-outline" style="flex:1;padding:10px;" onclick="submitRating(false)">Solo guardar</button>
-      <button class="btn btn-gold" style="flex:1;padding:10px;" onclick="submitRating(true)">📲 Enviar al entrenador</button>
+      <button class="btn btn-outline" style="flex:1;padding:10px;" id="rating-save-btn" onclick="handleRatingSubmit(false)">Solo guardar</button>
+      <button class="btn btn-gold" style="flex:1;padding:10px;" id="rating-send-btn" onclick="handleRatingSubmit(true)">📲 Enviar al entrenador</button>
     </div>
   </div>
 </div>
@@ -1624,7 +1652,19 @@ function goToClient(id){
 }
 
 // ─── RATING ───
+function handleRatingSubmit(sendToTrainer){
+  // Detect if this is a reto rating or normal rating
+  if(currentRating.routineId && String(currentRating.routineId).startsWith('reto_day_')){
+    submitRetoRating(sendToTrainer);
+  } else {
+    submitRating(sendToTrainer);
+  }
+}
+
 function openRatingPopup(routineId,clientId){
+  // Reset title for normal routines
+  const titleEl=document.getElementById('rating-popup-title');
+  if(titleEl) titleEl.textContent='¡RUTINA COMPLETADA!';
   currentRating={routineId,clientId,stars:0};
   document.getElementById('rating-comment').value='';
   document.querySelectorAll('.star').forEach(s=>s.classList.remove('active'));
@@ -2240,33 +2280,218 @@ async function retoCompleteDay(){
       if(retoCompletions.length===7) setTimeout(()=>showToast('🥊 ¡Insignia Semana 1!'),1500);
       if(retoCompletions.length===14) setTimeout(()=>showToast('💪 ¡Insignia Semana 2!'),1500);
       if(retoCompletions.length===21) setTimeout(()=>showToast('🏆 ¡RETO COMPLETADO!'),1500);
+      // Show rating popup after short delay
+      setTimeout(()=>openRetoRatingPopup(day), 900);
     }
   }catch(e){btn.disabled=false;btn.textContent='MARCAR DÍA COMPLETO';showToast('Error al guardar');}
+}
+
+function openRetoRatingPopup(day){
+  currentRating={routineId:'reto_day_'+day, clientId:retoClient.id, stars:0};
+  document.getElementById('rating-comment').value='';
+  // Update rating title for reto context
+  const titleEl=document.querySelector('#rating-popup .rating-title');
+  if(titleEl) titleEl.textContent='¡DÍA '+day+' COMPLETADO!';
+  const subtitleEl=document.querySelector('#rating-popup .rating-subtitle');
+  if(subtitleEl) subtitleEl.textContent='¿Cómo estuvo el entrenamiento de hoy?';
+  document.querySelectorAll('#stars-row .star').forEach(s=>s.style.opacity='0.3');
+  document.getElementById('rating-popup').classList.add('open');
+}
+
+async function submitRetoRating(sendToTrainer){
+  if(!currentRating.stars){showToast('Selecciona una calificación ⭐');return;}
+  const comment=document.getElementById('rating-comment').value.trim();
+  const day=currentRating.routineId.replace('reto_day_','');
+  const entry={id:Date.now(),clientId:currentRating.clientId,routineId:currentRating.routineId,date:new Date().toISOString().split('T')[0],rating:currentRating.stars,comment};
+  await dbInsert('training_ratings',entry);
+  ratings.push(entry);
+  document.getElementById('rating-popup').classList.remove('open');
+  showToast('⭐ Calificación guardada');
+  if(sendToTrainer){
+    const stars='⭐'.repeat(currentRating.stars);
+    const msg=`💪 *Reporte Reto 21 Días*\n\n👤 ${retoClient.name}\n📅 ${entry.date}\n🏋️ Día ${day} del reto\n${stars} (${currentRating.stars}/5)${comment?'\n\n💬 '+comment:''}`;
+    window.open(`https://wa.me/${TRAINER_WHATSAPP}?text=${encodeURIComponent(msg)}`,'_blank');
+  }
 }
 async function renderRetoRanking(){
   const list=document.getElementById('reto-ranking-list');
   list.innerHTML='<div style="text-align:center;padding:20px;color:var(--gray);">Cargando...</div>';
   try{
-    const [cr,compr]=await Promise.all([
+    const [cr,compr,ratingsr]=await Promise.all([
       fetch(SB_URL+'/reto_clients?select=id,name,pin,start_date&apikey='+SB_KEY),
-      fetch(SB_URL+'/reto_completions?select=reto_client_id,day_num,date&apikey='+SB_KEY)
+      fetch(SB_URL+'/reto_completions?select=reto_client_id,day_num,date&apikey='+SB_KEY),
+      fetch(SB_URL+'/training_ratings?select=clientId,routineId,rating&apikey='+SB_KEY)
     ]);
-    const ac=cr.ok?await cr.json():[], ac2=compr.ok?await compr.json():[];
+    const ac=cr.ok?await cr.json():[];
+    const ac2=compr.ok?await compr.json():[];
+    const ratingsData=ratingsr.ok?await ratingsr.json():[];
+
+    const today=new Date(); today.setHours(0,0,0,0);
+
     const ranked=ac.map(c=>{
       const mc=ac2.filter(x=>x.reto_client_id===c.id);
       const sorted=mc.map(x=>x.date).sort().reverse();
-      const today=new Date();today.setHours(0,0,0,0);
+
+      // Days available since start_date
+      let diasDisponibles=21;
+      if(c.start_date){
+        const parts=c.start_date.split('-');
+        const startD=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+        diasDisponibles=Math.min(21,Math.max(1,Math.floor((today-startD)/86400000)+1));
+      }
+
+      // Streak
       let streak=0;
-      for(let i=0;i<sorted.length;i++){const d=new Date(sorted[i]);d.setHours(0,0,0,0);if(Math.floor((today-d)/86400000)===i)streak++;else break;}
-      return{...c,days:mc.length,streak};
-    }).sort((a,b)=>b.days-a.days||b.streak-a.streak);
+      for(let i=0;i<sorted.length;i++){
+        const d=new Date(sorted[i]); d.setHours(0,0,0,0);
+        if(Math.floor((today-d)/86400000)===i) streak++;
+        else break;
+      }
+
+      // Speed: total days elapsed to complete mc.length days
+      let speed=999;
+      if(c.start_date && mc.length>0){
+        const parts=c.start_date.split('-');
+        const startD=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+        const lastDate=new Date(sorted[0]); lastDate.setHours(0,0,0,0);
+        speed=Math.floor((lastDate-startD)/86400000)+1;
+      }
+
+      // Avg rating from reto days only
+      const myRatings=ratingsData.filter(r=>String(r.clientId)===String(c.id)&&String(r.routineId||'').startsWith('reto_day_'));
+      const avgRating=myRatings.length>0?Math.round((myRatings.reduce((s,r)=>s+(r.rating||0),0)/myRatings.length)*10)/10:0;
+
+      const terminado=mc.length>=21||new Set(mc.map(x=>x.day_num)).size>=21;
+
+      return{...c, days:mc.length, diasDisponibles, streak, speed, avgRating, terminado};
+    }).sort((a,b)=>{
+      if(b.days!==a.days) return b.days-a.days;
+      if(b.streak!==a.streak) return b.streak-a.streak;
+      if(b.avgRating!==a.avgRating) return b.avgRating-a.avgRating;
+      return a.speed-b.speed;
+    });
+
+    // Check if ALL participants finished their 21 days
+    const todosTerminaron=ranked.length>0&&ranked.every(p=>p.terminado);
+    let headerHtml='';
+    if(todosTerminaron){
+      const top3=ranked.slice(0,3);
+      headerHtml=`<div style="background:linear-gradient(135deg,#1a0a00,#2d1500);border:2px solid var(--gold);border-radius:16px;padding:20px;text-align:center;margin-bottom:16px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--gold);letter-spacing:3px;margin-bottom:8px;">🏆 ¡RETO FINALIZADO!</div>
+        <div style="font-size:13px;color:var(--white);margin-bottom:4px;">Todos completaron sus 21 días</div>
+        <div style="font-size:12px;color:var(--gray2);">Ganadores oficiales del reto</div>
+      </div>`;
+    }
+
     const medals=['🥇','🥈','🥉'];
-    list.innerHTML=ranked.map((p,i)=>{
+    list.innerHTML= headerHtml + ranked.map((p,i)=>{
       const isMe=retoClient&&p.id===retoClient.id;
       const pc=i===0?'gold':i===1?'silver':i===2?'bronze':'';
-      return `<div class="ranking-card ${isMe?'ranking-me':''}"><div class="ranking-pos ${pc}">${medals[i]||i+1}</div><div style="flex:1"><div style="font-weight:700;font-size:14px;">${p.name}${isMe?' <span style="color:var(--gold);font-size:10px;">← Tú</span>':''}</div><div style="font-size:11px;color:var(--gray2)">${p.days} días completados · 🔥${p.streak} racha</div></div></div>`;
+      const stars=p.avgRating>0?` · ⭐${p.avgRating}`:'';
+      const terminadoBadge=p.terminado?'<span style="background:rgba(201,149,42,0.2);border:1px solid var(--gold);border-radius:4px;padding:2px 6px;font-size:10px;color:var(--gold);margin-left:4px;">✓ COMPLETO</span>':'';
+      return `<div class="ranking-card ${isMe?'ranking-me':''}${todosTerminaron&&i<3?' ranking-winner':''}">
+        <div class="ranking-pos ${pc}">${medals[i]||i+1}</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px;">${p.name}${terminadoBadge}${isMe?' <span style="color:var(--gold);font-size:10px;">← Tú</span>':''}</div>
+          <div style="font-size:11px;color:var(--gray2)">${p.days}/21 días · 🔥${p.streak} racha${stars}</div>
+        </div>
+      </div>`;
     }).join('')||'<div style="text-align:center;padding:30px;color:var(--gray)">Aún no hay participantes</div>';
   }catch(e){list.innerHTML='<div style="color:var(--danger);text-align:center;padding:20px;">Error al cargar</div>';}
+}
+
+// ─── RETO CHAT ───
+let chatFotoBase64 = null;
+
+function previewChatFoto(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    chatFotoBase64=ev.target.result;
+    document.getElementById('chat-foto-img').src=chatFotoBase64;
+    document.getElementById('chat-foto-preview').style.display='block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearChatFoto(){
+  chatFotoBase64=null;
+  document.getElementById('chat-foto-input').value='';
+  document.getElementById('chat-foto-preview').style.display='none';
+}
+
+async function postRetoChat(){
+  const msg=document.getElementById('chat-mensaje').value.trim();
+  const videoLink=document.getElementById('chat-video-link').value.trim();
+  if(!msg&&!chatFotoBase64){showToast('Escribe algo o sube una foto');return;}
+  const day=getRetoDay();
+  const payload={
+    id:Date.now(),
+    reto_client_id:retoClient.id,
+    ronda:1,
+    mensaje:msg||null,
+    foto:chatFotoBase64||null,
+    video_link:videoLink||null,
+    dia_num:day,
+    fecha_post:new Date().toISOString()
+  };
+  showToast('Publicando...');
+  const res=await fetch(SB_URL+'/reto_chat?apikey='+SB_KEY,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=minimal'},
+    body:JSON.stringify(payload)
+  });
+  if(res.ok||res.status===201){
+    document.getElementById('chat-mensaje').value='';
+    document.getElementById('chat-video-link').value='';
+    clearChatFoto();
+    showToast('✅ Publicado');
+    loadRetoChat();
+  } else {
+    showToast('Error al publicar');
+  }
+}
+
+async function loadRetoChat(){
+  const feed=document.getElementById('reto-chat-feed');
+  if(!feed) return;
+  feed.innerHTML='<div style="text-align:center;padding:20px;color:var(--gray2);">Cargando...</div>';
+  try{
+    const [postsR, clientsR]=await Promise.all([
+      fetch(SB_URL+'/reto_chat?select=*&order=fecha_post.desc&limit=50&apikey='+SB_KEY),
+      fetch(SB_URL+'/reto_clients?select=id,name,photo&apikey='+SB_KEY)
+    ]);
+    const posts=postsR.ok?await postsR.json():[];
+    const cls=clientsR.ok?await clientsR.json():[];
+
+    if(!posts.length){
+      feed.innerHTML='<div style="text-align:center;padding:30px;color:var(--gray2);">Sé el primero en publicar algo 🔥</div>';
+      return;
+    }
+
+    feed.innerHTML=posts.map(p=>{
+      const cl=cls.find(c=>c.id===p.reto_client_id);
+      const name=cl?cl.name:'Participante';
+      const avatar=cl?.photo?`<img src="${cl.photo}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;">`:`<div style="width:38px;height:38px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#000;">${name[0]}</div>`;
+      const isMe=retoClient&&p.reto_client_id===retoClient.id;
+      const fecha=new Date(p.fecha_post).toLocaleDateString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      const videoEmbed=p.video_link?`<a href="${p.video_link}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:8px 12px;color:var(--gold);font-size:12px;text-decoration:none;margin-top:8px;">🎥 Ver video</a>`:'';
+      return `<div style="background:var(--dark2);border:1px solid ${isMe?'rgba(201,149,42,0.3)':'#222'};border-radius:14px;padding:14px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          ${avatar}
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:13px;color:var(--white);">${name}${isMe?' <span style="color:var(--gold);font-size:10px;">· Tú</span>':''}</div>
+            <div style="font-size:10px;color:var(--gray2);">Día ${p.dia_num} · ${fecha}</div>
+          </div>
+        </div>
+        ${p.mensaje?`<div style="font-size:13px;color:var(--white);line-height:1.5;margin-bottom:8px;">${p.mensaje}</div>`:''}
+        ${p.foto?`<img src="${p.foto}" style="width:100%;border-radius:10px;max-height:280px;object-fit:cover;">`:''}
+        ${videoEmbed}
+      </div>`;
+    }).join('');
+  }catch(e){
+    feed.innerHTML='<div style="color:var(--danger);text-align:center;padding:20px;">Error al cargar</div>';
+  }
 }
 async function renderRetoAdmin(){
   try{
