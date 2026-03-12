@@ -107,8 +107,8 @@ textarea.form-input{resize:vertical;min-height:80px;}
 .rating-box{background:var(--dark2);border:1px solid var(--gold);border-radius:20px;padding:28px 24px;width:100%;max-width:380px;text-align:center;animation:slideUp 0.3s ease;}
 .rating-title{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:3px;color:var(--gold);margin-bottom:6px;}
 .stars{display:flex;justify-content:center;gap:10px;margin-bottom:16px;}
-.star{font-size:36px;cursor:pointer;opacity:0.3;transition:all 0.15s;}
-.star.active{opacity:1;transform:scale(1.2);}
+.star{font-size:36px;cursor:pointer;opacity:0.25;transition:all 0.15s;filter:grayscale(100%);}
+.star.active{opacity:1;transform:scale(1.2);filter:grayscale(0%) drop-shadow(0 0 8px rgba(255,200,0,0.8));}
 .dashboard-client{background:var(--dark2);border:1px solid #252525;border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
 .dc-status{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 .dc-trained{background:var(--success);}
@@ -2457,25 +2457,52 @@ async function loadRetoChat(){
   if(!feed) return;
   feed.innerHTML='<div style="text-align:center;padding:20px;color:var(--gray2);">Cargando...</div>';
   try{
-    const [postsR, clientsR]=await Promise.all([
-      fetch(SB_URL+'/reto_chat?select=*&order=fecha_post.desc&limit=50&apikey='+SB_KEY),
-      fetch(SB_URL+'/reto_clients?select=id,name,photo&apikey='+SB_KEY)
+    const [postsR, clientsR, reactR, comentR]=await Promise.all([
+      fetch(SB_URL+'/reto_chat?select=*&order=fecha_post.desc&limit=50&apikey='+SB_KEY, {headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}}),
+      fetch(SB_URL+'/reto_clients?select=id,name,photo&apikey='+SB_KEY, {headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}}),
+      fetch(SB_URL+'/reto_chat_reacciones?select=*&apikey='+SB_KEY, {headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}}),
+      fetch(SB_URL+'/reto_chat_comentarios?select=*&order=created_at.asc&apikey='+SB_KEY, {headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}})
     ]);
     const posts=postsR.ok?await postsR.json():[];
     const cls=clientsR.ok?await clientsR.json():[];
+    const reacciones=reactR.ok?await reactR.json():[];
+    const comentarios=comentR.ok?await comentR.json():[];
 
     if(!posts.length){
       feed.innerHTML='<div style="text-align:center;padding:30px;color:var(--gray2);">Sé el primero en publicar algo 🔥</div>';
       return;
     }
 
+    const emojis=['🔥','💪','👏','❤️','🥊'];
+
     feed.innerHTML=posts.map(p=>{
       const cl=cls.find(c=>c.id===p.reto_client_id);
       const name=cl?cl.name:'Participante';
-      const avatar=cl?.photo?`<img src="${cl.photo}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;">`:`<div style="width:38px;height:38px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#000;">${name[0]}</div>`;
+      const avatar=cl?.photo
+        ?`<img src="${cl.photo}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;">`
+        :`<div style="width:38px;height:38px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#000;">${name[0]}</div>`;
       const isMe=retoClient&&p.reto_client_id===retoClient.id;
       const fecha=new Date(p.fecha_post).toLocaleDateString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
       const videoEmbed=p.video_link?`<a href="${p.video_link}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:8px 12px;color:var(--gold);font-size:12px;text-decoration:none;margin-top:8px;">🎥 Ver video</a>`:'';
+
+      // Reactions for this post
+      const postReacts=reacciones.filter(r=>r.chat_id===p.id);
+      const myReact=retoClient?postReacts.find(r=>r.reto_client_id===retoClient.id):null;
+      const reactCounts=emojis.map(e=>({e,count:postReacts.filter(r=>r.tipo===e).length})).filter(x=>x.count>0);
+      const reactBtns=emojis.map(e=>`<button onclick="toggleReaccion(${p.id},'${e}')" style="background:${myReact?.tipo===e?'rgba(201,149,42,0.25)':'#1a1a1a'};border:1px solid ${myReact?.tipo===e?'var(--gold)':'#333'};border-radius:20px;padding:4px 10px;font-size:14px;cursor:pointer;">${e}</button>`).join('');
+      const reactSummary=reactCounts.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;">${reactCounts.map(x=>`<span style="background:#1a1a1a;border-radius:20px;padding:2px 8px;font-size:12px;">${x.e} ${x.count}</span>`).join('')}</div>`:'';
+
+      // Comments for this post
+      const postComents=comentarios.filter(c=>c.chat_id===p.id);
+      const comentHtml=postComents.map(c=>{
+        const ccl=cls.find(x=>x.id===c.reto_client_id);
+        const cname=ccl?ccl.name:'Participante';
+        return `<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;">
+          <div style="font-weight:700;font-size:12px;color:var(--gold);white-space:nowrap;">${cname}:</div>
+          <div style="font-size:12px;color:var(--white);line-height:1.4;">${c.comentario}</div>
+        </div>`;
+      }).join('');
+
       return `<div style="background:var(--dark2);border:1px solid ${isMe?'rgba(201,149,42,0.3)':'#222'};border-radius:14px;padding:14px;margin-bottom:10px;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
           ${avatar}
@@ -2485,13 +2512,56 @@ async function loadRetoChat(){
           </div>
         </div>
         ${p.mensaje?`<div style="font-size:13px;color:var(--white);line-height:1.5;margin-bottom:8px;">${p.mensaje}</div>`:''}
-        ${p.foto?`<img src="${p.foto}" style="width:100%;border-radius:10px;max-height:280px;object-fit:cover;">`:''}
+        ${p.foto?`<img src="${p.foto}" style="width:100%;border-radius:10px;max-height:280px;object-fit:cover;margin-bottom:8px;">`:''}
         ${videoEmbed}
+        ${reactSummary}
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;margin-bottom:8px;">${reactBtns}</div>
+        ${postComents.length?`<div style="background:#111;border-radius:8px;padding:8px 10px;margin-bottom:8px;">${comentHtml}</div>`:''}
+        <div style="display:flex;gap:6px;margin-top:4px;">
+          <input id="coment-${p.id}" placeholder="Comentar..." style="flex:1;background:#1a1a1a;border:1px solid #333;border-radius:8px;color:var(--white);padding:6px 10px;font-size:12px;">
+          <button onclick="enviarComentario(${p.id})" style="background:rgba(201,149,42,0.2);border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;">Enviar</button>
+        </div>
       </div>`;
     }).join('');
   }catch(e){
-    feed.innerHTML='<div style="color:var(--danger);text-align:center;padding:20px;">Error al cargar</div>';
+    console.error(e);
+    feed.innerHTML='<div style="color:var(--danger);text-align:center;padding:20px;">Error al cargar el chat</div>';
   }
+}
+
+async function toggleReaccion(chatId, emoji){
+  if(!retoClient){showToast('Inicia sesión primero');return;}
+  // Check if already reacted with same emoji
+  const existing=await fetch(SB_URL+'/reto_chat_reacciones?chat_id=eq.'+chatId+'&reto_client_id=eq.'+retoClient.id+'&apikey='+SB_KEY,
+    {headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});
+  const rows=existing.ok?await existing.json():[];
+  if(rows.length>0){
+    // Delete existing reaction
+    await fetch(SB_URL+'/reto_chat_reacciones?id=eq.'+rows[0].id+'&apikey='+SB_KEY,
+      {method:'DELETE',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});
+    if(rows[0].tipo===emoji){loadRetoChat();return;} // just removed
+  }
+  // Add new reaction
+  await fetch(SB_URL+'/reto_chat_reacciones?apikey='+SB_KEY,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=minimal'},
+    body:JSON.stringify({id:Date.now(),chat_id:chatId,reto_client_id:retoClient.id,tipo:emoji})
+  });
+  loadRetoChat();
+}
+
+async function enviarComentario(chatId){
+  if(!retoClient){showToast('Inicia sesión primero');return;}
+  const input=document.getElementById('coment-'+chatId);
+  const texto=input?.value.trim();
+  if(!texto){showToast('Escribe un comentario');return;}
+  await fetch(SB_URL+'/reto_chat_comentarios?apikey='+SB_KEY,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=minimal'},
+    body:JSON.stringify({id:Date.now(),chat_id:chatId,reto_client_id:retoClient.id,comentario:texto})
+  });
+  if(input) input.value='';
+  loadRetoChat();
 }
 async function renderRetoAdmin(){
   try{
