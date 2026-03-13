@@ -434,6 +434,7 @@ body.trainer-mode .client-only{display:none;}
     <button class="reto-tab-btn" id="rtab-vista" onclick="retoAdminTab('vista')">👁 Vista</button>
     <button class="reto-tab-btn" id="rtab-chat" onclick="retoAdminTab('chat')">💬 Chat</button>
     <button class="reto-tab-btn" id="rtab-mensaje" onclick="retoAdminTab('mensaje')">📣 Mensajes</button>
+    <button class="reto-tab-btn" id="rtab-historial" onclick="retoAdminTab('historial')">📚 Historial</button>
   </div>
 
   <!-- PARTICIPANTES -->
@@ -442,7 +443,14 @@ body.trainer-mode .client-only{display:none;}
       <button onclick="openRetoAddClientChecked()" style="flex:1;padding:12px;border-radius:10px;background:linear-gradient(135deg,#c9952a,#8a6009);color:#000;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;border:none;cursor:pointer;">+ AGREGAR</button>
       <button onclick="sendPushRemindersUI()" style="flex:1;padding:12px;border-radius:10px;background:linear-gradient(135deg,#0d2e0d,#1a5e1a);color:#25D366;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;border:1px solid #25D366;cursor:pointer;">📲 RECORDATORIO</button>
     </div>
+    <button onclick="limpiarRetoUI()" style="width:100%;padding:11px;border-radius:10px;background:#1a0505;border:1px solid #5a1a1a;color:var(--danger);font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;margin-bottom:14px;">🗑 LIMPIAR Y REINICIAR RETO</button>
     <div id="reto-participants-list"></div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div id="reto-admin-historial" style="display:none;">
+    <div style="font-size:12px;color:var(--gray2);margin-bottom:14px;">Participantes de retos anteriores. Invítalos al próximo reto.</div>
+    <div id="reto-historial-list"></div>
   </div>
 
   <!-- RUTINAS -->
@@ -2716,7 +2724,7 @@ async function renderRetoAdmin(){
   renderRetoParticipants();
 }
 function retoAdminTab(tab){
-  ['participantes','rutinas','vista','chat','mensaje'].forEach(t=>{
+  ['participantes','rutinas','vista','chat','mensaje','historial'].forEach(t=>{
     document.getElementById('reto-admin-'+t).style.display=t===tab?'block':'none';
     document.getElementById('rtab-'+t).classList.toggle('active',t===tab);
   });
@@ -2725,8 +2733,95 @@ function retoAdminTab(tab){
   if(tab==='participantes') renderRetoParticipants();
   if(tab==='vista') renderRetoVistaGrid();
   if(tab==='chat') { loadRetoChatAdmin(); }
+  if(tab==='historial') renderRetoHistorial();
 }
 
+
+// ─── LIMPIAR Y REINICIAR RETO ───
+async function limpiarRetoUI(){
+  const pin = prompt('Ingresa tu PIN de entrenador para confirmar:');
+  if(String(pin) !== String(TRAINER_PIN)){ showToast('❌ PIN incorrecto'); return; }
+  const ok = confirm('⚠️ Esto guardará a todos los participantes en el historial y luego borrará el reto actual.\n\n¿Estás seguro?');
+  if(!ok) return;
+  showToast('⏳ Guardando historial...');
+  try {
+    // 1. Obtener participantes actuales con sus completados
+    const clients = await xhrGet(SB_URL+'/reto_clients?select=id,name,pin,phone,start_date,ronda&apikey='+SB_KEY);
+    if(clients && clients.length > 0){
+      for(const c of clients){
+        const comps = await xhrGet(SB_URL+'/reto_completions?reto_client_id=eq.'+c.id+'&apikey='+SB_KEY) || [];
+        const nivel = localStorage.getItem('cbc_reto_level') || '';
+        await xhrPost(SB_URL+'/reto_historial', {
+          id: Date.now() + Math.floor(Math.random()*1000),
+          nombre: c.name,
+          telefono: c.phone || '',
+          pin: c.pin || '',
+          ronda: c.ronda || 1,
+          dias_completados: comps.length,
+          nivel: nivel,
+          fecha_inicio: c.start_date,
+          fecha_fin: new Date().toISOString().split('T')[0]
+        }, 'POST');
+      }
+    }
+    showToast('✅ Historial guardado. Limpiando reto...');
+    // 2. Borrar datos del reto
+    await xhrPost(SB_URL+'/reto_chat_comentarios?id=gt.0', null, 'DELETE');
+    await xhrPost(SB_URL+'/reto_chat_reacciones?id=gt.0', null, 'DELETE');
+    await xhrPost(SB_URL+'/reto_chat?id=gt.0', null, 'DELETE');
+    await xhrPost(SB_URL+'/reto_completions?id=gt.0', null, 'DELETE');
+    await xhrPost(SB_URL+'/reto_clients?id=gt.0', null, 'DELETE');
+    // 3. Borrar fotos del chat en Storage
+    const SB_BASE = 'https://btdtpruxntodjuzomdcq.supabase.co';
+    const listRes = await fetch(`${SB_BASE}/storage/v1/object/list/reto-fotos/chat`, {
+      method:'POST', headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'},
+      body: JSON.stringify({limit:1000,offset:0,prefix:''})
+    });
+    if(listRes.ok){
+      const files = await listRes.json();
+      if(files && files.length > 0){
+        const names = files.map(f=>'chat/'+f.name);
+        await fetch(`${SB_BASE}/storage/v1/object/reto-fotos`, {
+          method:'DELETE', headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'},
+          body: JSON.stringify({prefixes: names})
+        });
+      }
+    }
+    showToast('🥊 ¡Reto reiniciado! Listo para nueva ronda');
+    setTimeout(()=>renderRetoParticipants(), 1000);
+  } catch(e){
+    console.error(e);
+    showToast('❌ Error al limpiar: '+e.message);
+  }
+}
+
+// ─── HISTORIAL DE PARTICIPANTES ───
+async function renderRetoHistorial(){
+  const el = document.getElementById('reto-historial-list');
+  el.innerHTML = '<div style="text-align:center;color:var(--gray2);padding:20px;">⏳ Cargando...</div>';
+  const rows = await xhrGet(SB_URL+'/reto_historial?select=*&order=fecha_fin.desc&apikey='+SB_KEY) || [];
+  if(!rows.length){
+    el.innerHTML = '<div style="text-align:center;color:var(--gray2);padding:30px;">Sin historial aún.<br>Aparecerá aquí al terminar un reto.</div>';
+    return;
+  }
+  el.innerHTML = rows.map(r=>`
+    <div style="background:var(--dark2);border:1px solid #333;border-radius:12px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;">
+      <div style="width:44px;height:44px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:20px;color:#000;flex-shrink:0;">${r.nombre[0]}</div>
+      <div style="flex:1;">
+        <div style="font-weight:700;font-size:14px;">${r.nombre}</div>
+        <div style="font-size:11px;color:var(--gray2);">Ronda ${r.ronda||1} · ${r.dias_completados||0}/21 días · ${r.fecha_fin||''}</div>
+        ${r.telefono?`<div style="font-size:11px;color:var(--gray2);">${r.telefono}</div>`:''}
+      </div>
+      ${r.telefono?`<button onclick="inviteRetoHistorial('${r.nombre}','${r.telefono}')" style="background:#0d2e0d;border:1px solid #1a5e1a;color:#25D366;padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap;">📲 Invitar</button>`:'<span style="font-size:11px;color:var(--gray);">Sin tel</span>'}
+    </div>
+  `).join('');
+}
+
+function inviteRetoHistorial(nombre, telefono){
+  const tel = telefono.replace(/\D/g,'');
+  const msg = encodeURIComponent(`Hola ${nombre}! 🥊🔥\n\nEl próximo Reto 21 Días de Colorado's Boxing ya está abierto.\n¿Te apuntas? Inscríbete aquí 👇\nhttps://coloradosboxing-cpu.github.io/cbc-training/reto21-landing.html`);
+  window.open(`https://wa.me/${tel}?text=${msg}`, '_blank');
+}
 
 function openRetoAddClientChecked(){
   const limit=new Date('2026-03-31'); limit.setHours(0,0,0,0);
