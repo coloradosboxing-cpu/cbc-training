@@ -3423,6 +3423,51 @@ function startSupabasePing() {
   setInterval(ping, 4 * 24 * 60 * 60 * 1000); // every 4 days
 }
 startSupabasePing();
+let timerInterval;
+let startTime;
+let elapsedTime = 0;
+let timerRunning = false;
+
+function toggleTimer() {
+  const btn = document.getElementById('btn-start-timer');
+  if (!timerRunning) {
+    // Iniciar
+    startTime = Date.now() - elapsedTime;
+    timerInterval = setInterval(updateTimerDisplay, 1000);
+    btn.innerText = "PAUSAR";
+    btn.style.background = "var(--danger)";
+    timerRunning = true;
+  } else {
+    // Pausar
+    clearInterval(timerInterval);
+    elapsedTime = Date.now() - startTime;
+    btn.innerText = "CONTINUAR";
+    btn.style.background = "var(--gold)";
+    timerRunning = false;
+  }
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  elapsedTime = 0;
+  timerRunning = false;
+  document.getElementById('stopwatch-display').innerText = "00:00";
+  const btn = document.getElementById('btn-start-timer');
+  btn.innerText = "INICIAR";
+  btn.style.background = "var(--gold)";
+}
+
+function updateTimerDisplay() {
+  const now = Date.now();
+  const diff = now - startTime;
+  const totalSeconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  
+  document.getElementById('stopwatch-display').innerText = 
+    (minutes < 10 ? "0" + minutes : minutes) + ":" + 
+    (seconds < 10 ? "0" + seconds : seconds);
+}
 </script>
 
 </body>
