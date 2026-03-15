@@ -225,7 +225,16 @@ body.trainer-mode .client-only{display:none;}
       </div>
     </div>
     <div id="workout-view" style="display:none;">
-      <button class="back-btn" onclick="backToClients()">← Regresar</button>
+      <button class="back-btn" onclick="backToClients()">
+       <div class="card" style="background: linear-gradient(135deg, #111, #222); border: 1px solid var(--gold); text-align: center; margin-bottom: 15px;">
+  <div style="font-family: 'Bebas Neue', sans-serif; font-size: 14px; color: var(--gold); letter-spacing: 2px;">TIEMPO DE ENTRENAMIENTO</div>
+  <div id="stopwatch-display" style="font-family: 'Bebas Neue', sans-serif; font-size: 48px; color: var(--white); margin: 5px 0;">00:00</div>
+  <div style="display: flex; gap: 10px; justify-content: center;">
+    <button id="btn-start-timer" onclick="toggleTimer()" class="btn btn-gold btn-sm" style="width: 100px;">INICIAR</button>
+    <button onclick="resetTimer()" class="btn btn-outline btn-sm" style="width: 100px;">REINICIAR</button>
+  </div>
+</div> 
+        ← Regresar</button>
       <div id="workout-content"></div>
     </div>
   </div>
