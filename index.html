@@ -1255,7 +1255,7 @@ async function toggleDone(key,index,routineId,clientId){
   const routine=routines.find(r=>r.id===routineId);
   if(routine&&completions[key].length===routine.exercises.length&&completions[key].length>0){
     setTimeout(()=>openRatingPopup(routineId,clientId),700);
-  }
+  
 }
 
 // ─── ROUTINES ───
