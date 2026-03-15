@@ -15,6 +15,41 @@
 <!-- CSP removed to allow Supabase connections -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+
+/* --- ESTILO DEL CRONÓMETRO --- */
+.timer-float {
+  position: fixed;
+  bottom: 85px;
+  right: 15px;
+  background: #1a1a1a;
+  border: 1px solid #c9952a;
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 9999;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+  min-width: 100px;
+}
+.timer-display {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px;
+  color: #fff;
+  margin: 2px 0;
+  letter-spacing: 2px;
+}
+.timer-btn {
+  background: #c9952a;
+  color: #000;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: bold;
+}
 <style>
 :root{--gold:#c9952a;--gold2:#e8b84b;--black:#0a0a0a;--dark:#111;--dark2:#1a1a1a;--dark3:#222;--dark4:#2a2a2a;--white:#f0ede8;--gray:#666;--gray2:#999;--success:#2ecc71;--danger:#e74c3c;--warning:#f39c12;}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
