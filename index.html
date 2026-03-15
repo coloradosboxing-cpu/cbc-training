@@ -3423,6 +3423,57 @@ function startSupabasePing() {
   setInterval(ping, 4 * 24 * 60 * 60 * 1000); // every 4 days
 }
 startSupabasePing();
+// VARIABLES Y LÓGICA DEL CRONÓMETRO CBC
+let timerInterval, startTime, elapsedTime = 0, timerRunning = false;
+const bellSound = new Audio('https://actions.google.com/sounds/v1/sports/boxing_bell.ogg');
+
+function toggleTimer() {
+  const btn = document.getElementById('btn-start-timer');
+  if (!timerRunning) {
+    startTime = Date.now() - elapsedTime;
+    timerInterval = setInterval(updateTimerDisplay, 1000);
+    btn.innerText = "PAUSAR"; 
+    btn.style.background = "#ff4444"; // Rojo al estar activo
+    timerRunning = true;
+    bellSound.play().catch(()=>{}); // Campana al iniciar
+  } else {
+    clearInterval(timerInterval);
+    elapsedTime = Date.now() - startTime;
+    btn.innerText = "CONTINUAR"; 
+    btn.style.background = "var(--gold)";
+    timerRunning = false;
+  }
+}
+
+function resetTimer() {
+  clearInterval(timerInterval); 
+  elapsedTime = 0; 
+  timerRunning = false;
+  const display = document.getElementById('stopwatch-display');
+  if(display) display.innerText = "00:00";
+  const btn = document.getElementById('btn-start-timer');
+  if(btn) { 
+    btn.innerText = "INICIAR"; 
+    btn.style.background = "var(--gold)"; 
+  }
+}
+
+function updateTimerDisplay() {
+  const diff = Date.now() - startTime;
+  const totalSecs = Math.floor(diff / 1000);
+  const m = Math.floor(totalSecs / 60);
+  const s = totalSecs % 60;
+  
+  // Sonar campana cada 3 minutos (Round de Boxeo)
+  if (totalSecs > 0 && totalSecs % 180 === 0 && s === 0) {
+    bellSound.play().catch(()=>{});
+  }
+
+  const display = document.getElementById('stopwatch-display');
+  if(display) {
+    display.innerText = `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+  }
+}
 </script>
 
 </body>
